@@ -1,0 +1,35 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/BuildingBlocks.Core/BuildingBlocks.Core.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.CQRS/BuildingBlocks.CQRS.csproj" />
+    <Project Path="src/BuildingBlocks/BuildingBlocks.EventBus/BuildingBlocks.EventBus.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateways/">
+    <Project Path="src/Gateways/ApiGateway/ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/Chat/">
+    <Project Path="src/Services/Chat/Chat.API/Chat.API.csproj" />
+    <Project Path="src/Services/Chat/Chat.Application/Chat.Application.csproj" />
+    <Project Path="src/Services/Chat/Chat.Domain/Chat.Domain.csproj" />
+    <Project Path="src/Services/Chat/Chat.Infrastructure/Chat.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Identity/">
+    <Project Path="src/Services/Identity/Identity.API/Identity.API.csproj" />
+    <Project Path="src/Services/Identity/Identity.Application/Identity.Application.csproj" />
+    <Project Path="src/Services/Identity/Identity.Domain/Identity.Domain.csproj" />
+    <Project Path="src/Services/Identity/Identity.Infrastructure/Identity.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/Presence/">
+    <Project Path="src/Services/Presence/Presence.API/Presence.API.csproj" />
+    <Project Path="src/Services/Presence/Presence.Domain/Presence.Domain.csproj" />
+    <Project Path="src/Services/Presence/Presence.Infrastructure/Presence.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/User/">
+    <Project Path="src/Services/User/User.API/User.API.csproj" />
+    <Project Path="src/Services/User/User.Application/User.Application.csproj" />
+    <Project Path="src/Services/User/User.Domain/User.Domain.csproj" />
+    <Project Path="src/Services/User/User.Infrastructure/User.Infrastructure.csproj" />
+  </Folder>
+</Solution>

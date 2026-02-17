@@ -1,0 +1,93 @@
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using User.Application.Features.Profiles;
+
+namespace User.API.Controllers
+{
+    [ApiController]
+    [Route("api/v1/[controller]")]
+    public class UsersController : ControllerBase
+    {
+        private readonly IMediator _mediator;
+        private readonly User.Domain.Interfaces.IUserRepository _userRepository;
+
+        public UsersController(IMediator mediator, User.Domain.Interfaces.IUserRepository userRepository)
+        {
+            _mediator = mediator;
+            _userRepository = userRepository;
+        }
+
+        [HttpGet("identity/{identityId}")]
+        public async Task<IActionResult> GetProfileByIdentity(Guid identityId)
+        {
+            var result = await _mediator.Send(new GetUserProfileByIdentityQuery(identityId));
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProfile(Guid id)
+        {
+            var result = await _mediator.Send(new GetUserProfileQuery(id));
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+
+        // Internal endpoint for creating profile, or listening to MassTransit
+        // But for testing flexibility, we can expose it
+        [HttpPost]
+        public async Task<IActionResult> CreateProfile([FromBody] CreateUserProfileCommand command)
+        {
+            var id = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetProfile), new { id = command.IdentityId }, new { id });
+        }
+
+        [HttpGet("email/{email}")]
+        [Authorize]
+        public async Task<IActionResult> GetProfileByEmail(string email)
+        {
+            // Extract requesterId from token
+            Guid? requesterId = null;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+            
+            if (userIdClaim != null)
+            {
+                if (Guid.TryParse(userIdClaim.Value, out var identityId))
+                {
+                    var profile = await _userRepository.GetByIdentityIdAsync(identityId);
+                    requesterId = profile?.Id;
+                }
+                else 
+                {
+                    Console.WriteLine($"[UsersController] Failed to parse IdentityId from claim: {userIdClaim.Value}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("[UsersController] No 'sub' or 'nameid' claim found in token.");
+            }
+
+            var result = await _mediator.Send(new GetUserProfileByEmailQuery(email, requesterId));
+            if (result == null) return NotFound();
+            return Ok(result);
+        }
+        [HttpPut("profile")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateUserProfileCommand command)
+        {
+            // Extract userId from token to ensure security
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                return Unauthorized();
+            }
+
+            // Force command info to match token
+            command.UserId = userId;
+
+            var result = await _mediator.Send(command);
+            if (!result) return NotFound();
+            return Ok();
+        }
+    }
+}

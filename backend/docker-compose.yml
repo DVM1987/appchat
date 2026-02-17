@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL (Relational DB for Identity & metadata)
+  postgres:
+    image: postgres:15-alpine
+    container_name: chat_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: chat_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chat_network
+    restart: unless-stopped
+
+  # 2. MongoDB (Chat History - High Write Throughput)
+  mongo:
+    image: mongo:6.0
+    container_name: chat_mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - chat_network
+    restart: unless-stopped
+
+  # 3. Redis (Caching, SignalR Backplane, Presence)
+  redis:
+    image: redis:7-alpine
+    container_name: chat_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chat_network
+    restart: unless-stopped
+
+  # 4. RabbitMQ (Message Broker for Event Bus)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: chat_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672" # AMQP protocol
+      - "15672:15672" # Management UI
+    networks:
+      - chat_network
+    restart: unless-stopped
+
+  # 5. MinIO (S3 Compatible Object Storage for Media)
+  minio:
+    image: minio/minio
+    container_name: chat_minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console UI
+    volumes:
+      - minio_data:/data
+    networks:
+      - chat_network
+    restart: unless-stopped
+
+  # 6. Seq (Centralized Logging)
+  seq:
+    image: datalust/seq
+    container_name: chat_seq
+    environment:
+      ACCEPT_EULA: Y
+    ports:
+      - "5341:5341" # Ingestion
+      - "8081:80" # UI
+    volumes:
+      - seq_data:/data
+    networks:
+      - chat_network
+    restart: unless-stopped
+
+  # 7. API Gateway (YARP)
+  api_gateway:
+    build:
+      context: .
+      dockerfile: src/Gateways/ApiGateway/Dockerfile
+    container_name: chat_gateway
+    ports:
+      - "5001:8080"
+    networks:
+      - chat_network
+    depends_on:
+      - seq
+      - redis
+    restart: unless-stopped
+
+  # 8. Identity Service
+  identity_service:
+    build:
+      context: .
+      dockerfile: src/Services/Identity/Identity.API/Dockerfile
+    container_name: chat_identity
+    ports:
+      - "5002:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=chat_db;Username=admin;Password=password
+      - UserServiceUrl=http://user_service:8080
+    networks:
+      - chat_network
+    depends_on:
+      - postgres
+      - rabbitmq
+      - seq
+    restart: unless-stopped
+
+  # 9. Chat Service
+  chat_service:
+    image: backend-chat_service
+    build:
+      context: .
+      dockerfile: src/Services/Chat/Chat.API/Dockerfile
+    container_name: chat_service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - DatabaseSettings__ConnectionString=mongodb://admin:password@mongo:27017
+      - DatabaseSettings__DatabaseName=ChatDb
+    ports:
+      - "5003:8080"
+    volumes:
+      - chat_uploads:/app/wwwroot/chat-uploads
+    networks:
+      - chat_network
+    depends_on:
+      - mongo
+      - rabbitmq
+      - seq
+    restart: unless-stopped
+
+  # 10. User Service
+  user_service:
+    image: backend-user_service
+    build:
+      context: .
+      dockerfile: src/Services/User/User.API/Dockerfile
+    container_name: user_service
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=user_db;Username=admin;Password=password
+      - EventBusSettings__HostAddress=amqp://guest:guest@rabbitmq:5672
+    ports:
+      - "5004:8080"
+    networks:
+      - chat_network
+    volumes:
+      - user_uploads:/app/wwwroot/uploads
+    depends_on:
+      - postgres
+      - rabbitmq
+      - seq
+    restart: unless-stopped
+
+  presence_service:
+    container_name: chat_presence
+    build:
+      context: .
+      dockerfile: src/Services/Presence/Presence.API/Dockerfile
+    ports:
+      - "5005:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__Redis=chat_redis:6379
+    depends_on:
+      - redis
+    networks:
+      - chat_network
+
+networks:
+  chat_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  minio_data:
+  seq_data:
+  user_uploads:
+  chat_uploads:

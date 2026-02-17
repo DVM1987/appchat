@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+.git/
+.vscode/
+.idea/
+docker-compose.yml
+Dockerfile
+Persistence/Migrations/

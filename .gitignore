@@ -1,0 +1,22 @@
+# ========================
+# Root .gitignore
+# ========================
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Gemini agent
+.gemini/

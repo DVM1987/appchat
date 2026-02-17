@@ -1,0 +1,8 @@
+backend/bin/
+backend/obj/
+mobile/.dart_tool/
+mobile/.pub-cache/
+mobile/build/
+.git/
+.vs/
+TestResults/
