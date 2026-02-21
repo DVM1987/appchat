@@ -90,14 +90,23 @@ namespace Chat.API.Controllers
                 {
                     try
                     {
+                        Console.WriteLine($"[FCM] === Push notification flow started for conversation {conversationId} ===");
+                        Console.WriteLine($"[FCM] Sender: {userId}, Total participants: {conversation.ParticipantIds.Count}");
+                        
                         var otherParticipantIds = conversation.ParticipantIds
                             .Where(pid => pid != userId)
                             .ToList();
 
-                        if (!otherParticipantIds.Any()) return;
+                        if (!otherParticipantIds.Any())
+                        {
+                            Console.WriteLine("[FCM] No other participants, skipping");
+                            return;
+                        }
 
+                        Console.WriteLine($"[FCM] Fetching device tokens for {conversation.ParticipantIds.Count} participants...");
                         // Fetch ALL participant info (including sender for name)
                         var allParticipantInfos = await _userServiceClient.GetDeviceTokensAsync(conversation.ParticipantIds);
+                        Console.WriteLine($"[FCM] Got {allParticipantInfos.Count} participant infos from User.API");
 
                         // Get sender name
                         var senderInfo = allParticipantInfos.FirstOrDefault(p => p.IdentityId == userId);

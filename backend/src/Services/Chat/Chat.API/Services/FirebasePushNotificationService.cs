@@ -42,6 +42,7 @@ namespace Chat.API.Services
                             Credential = GoogleCredential.FromFile(credentialPath)
                         });
                         _isInitialized = true;
+                        Console.WriteLine($"[FCM] Firebase initialized with credential file: {credentialPath}");
                         _logger.LogInformation("[FCM] Firebase initialized with credential file: {Path}", credentialPath);
                     }
                     else
@@ -55,10 +56,12 @@ namespace Chat.API.Services
                                 Credential = GoogleCredential.FromFile(envPath)
                             });
                             _isInitialized = true;
+                            Console.WriteLine("[FCM] Firebase initialized from GOOGLE_APPLICATION_CREDENTIALS");
                             _logger.LogInformation("[FCM] Firebase initialized from GOOGLE_APPLICATION_CREDENTIALS");
                         }
                         else
                         {
+                            Console.WriteLine($"[FCM] Firebase NOT initialized — credentialPath={credentialPath}, envPath={envPath}");
                             _logger.LogWarning("[FCM] Firebase NOT initialized — no credential file found. Push notifications disabled.");
                             _isInitialized = false;
                         }
@@ -80,6 +83,7 @@ namespace Chat.API.Services
         {
             if (!_isInitialized)
             {
+                Console.WriteLine("[FCM] Firebase not initialized, skipping push notification");
                 _logger.LogWarning("[FCM] Firebase not initialized, skipping push notification");
                 return;
             }
@@ -119,7 +123,9 @@ namespace Chat.API.Services
                     }
                 };
 
+                Console.WriteLine($"[FCM] Sending push to token: {deviceToken.Substring(0, Math.Min(20, deviceToken.Length))}...");
                 var result = await FirebaseMessaging.DefaultInstance.SendAsync(message);
+                Console.WriteLine($"[FCM] Push sent successfully: {result}");
                 _logger.LogInformation("[FCM] Push sent successfully: {MessageId}", result);
             }
             catch (FirebaseMessagingException ex) when (ex.MessagingErrorCode == MessagingErrorCode.Unregistered)
@@ -129,12 +135,14 @@ namespace Chat.API.Services
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[FCM] ERROR sending push: {ex.Message}");
                 _logger.LogError(ex, "[FCM] Failed to send push notification to {Token}", deviceToken.Substring(0, Math.Min(20, deviceToken.Length)));
             }
         }
 
         public async Task SendToMultipleAsync(List<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null)
         {
+            Console.WriteLine($"[FCM] SendToMultipleAsync called with {deviceTokens.Count} tokens, initialized={_isInitialized}");
             if (!_isInitialized || deviceTokens.Count == 0) return;
 
             var tasks = deviceTokens.Select(token => SendToDeviceAsync(token, title, body, data));
