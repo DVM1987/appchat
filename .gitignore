@@ -21,7 +21,51 @@ Thumbs.db
 # Gemini agent
 .gemini/
 
-# Firebase Admin SDK key (sensitive)
+# ========================
+# 🔒 SENSITIVE FILES — NEVER COMMIT
+# ========================
+
+# Firebase Admin SDK key
 backend/src/Services/Chat/Chat.API/firebase-admin-sdk.json
-google-services.json
-GoogleService-Info.plist
+**/firebase-admin-sdk*.json
+
+# Firebase client configs (contain API keys)
+**/google-services.json
+**/GoogleService-Info.plist
+
+# .NET secrets & dev configs
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/appsettings.Production.json
+
+# SSH keys
+*.pem
+*_deploy_key
+*_deploy_key.pub
+
+# Session summaries (may contain VPS passwords/IPs)
+SESSION_SUMMARY*.md
+
+# ========================
+# Build outputs
+# ========================
+
+# .NET
+**/bin/
+**/obj/
+**/out/
+*.user
+*.suo
+
+# Flutter/Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+
+# Node
+node_modules/
+
+# Docker
+*.log
