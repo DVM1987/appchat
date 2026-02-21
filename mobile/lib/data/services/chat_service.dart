@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 
 import '../../core/config/app_config.dart';
@@ -69,15 +70,28 @@ class ChatService with WidgetsBindingObserver {
   // Streams
   Stream<void> get friendRequestStream => _friendRequestController.stream;
 
+  // === CALL SIGNALING CALLBACKS ===
+  // Called when callee receives an incoming call
+  void Function(Map<String, dynamic> callData)? onIncomingCall;
+  // Called when caller's call is accepted
+  VoidCallback? onCallAccepted;
+  // Called when caller's call is rejected
+  VoidCallback? onCallRejected;
+  // Called when the other party ends the call
+  VoidCallback? onCallEnded;
+
   // Get my conversations
   Future<List<dynamic>> getConversations() async {
     try {
-      final userId = await AuthService.getUserId(); // This returns IdentityId
-      if (userId == null) throw Exception('User not logged in');
+      final token = await AuthService.getToken();
+      if (token == null) throw Exception('User not authenticated');
 
       final response = await http.get(
-        Uri.parse('$_baseUrl/conversations?userId=$userId'),
-        headers: {'Content-Type': 'application/json'},
+        Uri.parse('$_baseUrl/conversations'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -474,7 +488,9 @@ class ChatService with WidgetsBindingObserver {
     };
     final mimeType = mimeTypes[ext] ?? 'audio/mp4';
 
-    AppConfig.log('Voice upload: uri=$uri, file=$fileName, ext=$ext, mime=$mimeType');
+    AppConfig.log(
+      'Voice upload: uri=$uri, file=$fileName, ext=$ext, mime=$mimeType',
+    );
 
     request.files.add(
       await http.MultipartFile.fromPath(
@@ -654,6 +670,30 @@ class ChatService with WidgetsBindingObserver {
           }
         }
       });
+
+      // === CALL SIGNALING LISTENERS ===
+      _hubConnection?.on('IncomingCall', (arguments) {
+        AppConfig.log('SignalR: IncomingCall received');
+        if (arguments != null && arguments.isNotEmpty) {
+          final raw = arguments[0];
+          if (raw is Map) {
+            final data = raw.map((k, v) => MapEntry(k.toString(), v));
+            onIncomingCall?.call(data);
+          }
+        }
+      });
+      _hubConnection?.on('CallAccepted', (arguments) {
+        AppConfig.log('SignalR: CallAccepted received');
+        onCallAccepted?.call();
+      });
+      _hubConnection?.on('CallRejected', (arguments) {
+        AppConfig.log('SignalR: CallRejected received');
+        onCallRejected?.call();
+      });
+      _hubConnection?.on('CallEnded', (arguments) {
+        AppConfig.log('SignalR: CallEnded received');
+        onCallEnded?.call();
+      });
     }
 
     if (_hubConnection?.state == HubConnectionState.Disconnected) {
@@ -770,6 +810,43 @@ class ChatService with WidgetsBindingObserver {
     }
   }
 
+  // === CALL SIGNALING METHODS ===
+  Future<void> initiateCall({
+    required String calleeId,
+    required String callType,
+  }) async {
+    if (_hubConnection?.state == HubConnectionState.Connected) {
+      final prefs = await SharedPreferences.getInstance();
+      final callerName = prefs.getString('user_name') ?? 'Người dùng';
+      await _hubConnection?.invoke(
+        'InitiateCall',
+        args: [calleeId, callType, callerName, ''],
+      );
+      AppConfig.log('Call: InitiateCall sent to $calleeId, type=$callType');
+    }
+  }
+
+  Future<void> acceptCall({required String callerId}) async {
+    if (_hubConnection?.state == HubConnectionState.Connected) {
+      await _hubConnection?.invoke('AcceptCall', args: [callerId]);
+      AppConfig.log('Call: AcceptCall sent to $callerId');
+    }
+  }
+
+  Future<void> rejectCall({required String callerId}) async {
+    if (_hubConnection?.state == HubConnectionState.Connected) {
+      await _hubConnection?.invoke('RejectCall', args: [callerId]);
+      AppConfig.log('Call: RejectCall sent to $callerId');
+    }
+  }
+
+  Future<void> endCall({required String otherUserId}) async {
+    if (_hubConnection?.state == HubConnectionState.Connected) {
+      await _hubConnection?.invoke('EndCall', args: [otherUserId]);
+      AppConfig.log('Call: EndCall sent to $otherUserId');
+    }
+  }
+
   // Get Presence for a specific user via HTTP API (or SignalR if implemented as Hub method)
   // Based on previous logs, it seems to use API endpoint: api/v1/presence/{userId}
   Future<Map<String, dynamic>?> getPresence(String userId) async {
@@ -791,7 +868,9 @@ class ChatService with WidgetsBindingObserver {
         // User not found in presence DB - treat as Offline
         return {'status': 'Offline', 'userId': userId};
       } else {
-        AppConfig.log('Failed to get presence for $userId: ${response.statusCode}');
+        AppConfig.log(
+          'Failed to get presence for $userId: ${response.statusCode}',
+        );
         return null;
       }
     } catch (e) {
@@ -830,7 +909,9 @@ class ChatService with WidgetsBindingObserver {
         AppConfig.log('ChatService: Error invoking GetPresences: $e');
       }
     } else {
-      AppConfig.log('ChatService: GetPresences skipped - PresenceHub not connected');
+      AppConfig.log(
+        'ChatService: GetPresences skipped - PresenceHub not connected',
+      );
     }
     return [];
   }

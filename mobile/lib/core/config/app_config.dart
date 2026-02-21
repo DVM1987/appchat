@@ -6,8 +6,8 @@
 //   - Production: `flutter run --dart-define=ENV=production`
 //   - Custom URL: `flutter run --dart-define=API_BASE_URL=https://your-api.com`
 //
-// For AWS production, set your actual domain:
-//   `flutter build apk --dart-define=ENV=production --dart-define=API_BASE_URL=https://api.your-domain.com`
+// For production release APK:
+//   `flutter build apk --dart-define=ENV=production`
 
 import 'dart:io';
 
@@ -25,6 +25,9 @@ class AppConfig {
     defaultValue: '',
   );
 
+  /// VPS Production IP
+  static const String _vpsHost = '139.180.217.83';
+
   static Environment get environment {
     switch (_envString.toLowerCase()) {
       case 'staging':
@@ -37,35 +40,55 @@ class AppConfig {
     }
   }
 
-  /// Main API base URL (Identity + API Gateway)
+  /// Main API base URL (Identity/Gateway)
   static String get apiBaseUrl {
     if (_customBaseUrl.isNotEmpty) return _customBaseUrl;
 
     switch (environment) {
       case Environment.development:
-        // Android emulator uses 10.0.2.2 to reach host machine
         return Platform.isAndroid
             ? 'http://10.0.2.2:5001'
             : 'http://localhost:5001';
       case Environment.staging:
-        return 'https://staging-api.your-domain.com'; // TODO: Update with actual staging URL
+        return 'http://$_vpsHost:5001';
       case Environment.production:
-        return 'https://api.your-domain.com'; // TODO: Update with actual production URL
+        return 'http://$_vpsHost:5001';
     }
   }
 
   /// Chat API REST base URL
-  static String get chatApiBaseUrl => '$apiBaseUrl/api/v1';
+  static String get chatApiBaseUrl {
+    if (_customBaseUrl.isNotEmpty) return '$_customBaseUrl/api/v1';
+    switch (environment) {
+      case Environment.development:
+        return Platform.isAndroid
+            ? 'http://10.0.2.2:5003/api/v1'
+            : 'http://localhost:5003/api/v1';
+      case Environment.staging:
+        return 'http://$_vpsHost:5003/api/v1';
+      case Environment.production:
+        return 'http://$_vpsHost:5003/api/v1';
+    }
+  }
 
   /// Chat SignalR Hub URL
-  static String get chatHubUrl => '$apiBaseUrl/chatHub';
+  static String get chatHubUrl {
+    if (_customBaseUrl.isNotEmpty) return '$_customBaseUrl/chatHub';
+    switch (environment) {
+      case Environment.development:
+        return Platform.isAndroid
+            ? 'http://10.0.2.2:5003/chatHub'
+            : 'http://localhost:5003/chatHub';
+      case Environment.staging:
+        return 'http://$_vpsHost:5003/chatHub';
+      case Environment.production:
+        return 'http://$_vpsHost:5003/chatHub';
+    }
+  }
 
   /// Presence SignalR Hub URL
   static String get presenceHubUrl {
-    if (_customBaseUrl.isNotEmpty) {
-      // In production, all services go through the same gateway
-      return '$_customBaseUrl/presenceHub';
-    }
+    if (_customBaseUrl.isNotEmpty) return '$_customBaseUrl/presenceHub';
 
     switch (environment) {
       case Environment.development:
@@ -73,17 +96,15 @@ class AppConfig {
             ? 'http://10.0.2.2:5005/presenceHub'
             : 'http://localhost:5005/presenceHub';
       case Environment.staging:
-        return 'https://staging-api.your-domain.com/presenceHub';
+        return 'http://$_vpsHost:5005/presenceHub';
       case Environment.production:
-        return 'https://api.your-domain.com/presenceHub';
+        return 'http://$_vpsHost:5005/presenceHub';
     }
   }
 
   /// User SignalR Hub URL
   static String get userHubUrl {
-    if (_customBaseUrl.isNotEmpty) {
-      return '$_customBaseUrl/userHub';
-    }
+    if (_customBaseUrl.isNotEmpty) return '$_customBaseUrl/userHub';
 
     switch (environment) {
       case Environment.development:
@@ -91,13 +112,13 @@ class AppConfig {
             ? 'http://10.0.2.2:5004/userHub'
             : 'http://localhost:5004/userHub';
       case Environment.staging:
-        return 'https://staging-api.your-domain.com/userHub';
+        return 'http://$_vpsHost:5004/userHub';
       case Environment.production:
-        return 'https://api.your-domain.com/userHub';
+        return 'http://$_vpsHost:5004/userHub';
     }
   }
 
-  /// Presence REST base URL (for HTTP calls like GetPresence)
+  /// Presence REST base URL
   static String get presenceApiBaseUrl {
     if (_customBaseUrl.isNotEmpty) return _customBaseUrl;
 
@@ -107,9 +128,25 @@ class AppConfig {
             ? 'http://10.0.2.2:5005'
             : 'http://localhost:5005';
       case Environment.staging:
-        return 'https://staging-api.your-domain.com';
+        return 'http://$_vpsHost:5005';
       case Environment.production:
-        return 'https://api.your-domain.com';
+        return 'http://$_vpsHost:5005';
+    }
+  }
+
+  /// User API REST base URL
+  static String get userApiBaseUrl {
+    if (_customBaseUrl.isNotEmpty) return '$_customBaseUrl/api/v1';
+
+    switch (environment) {
+      case Environment.development:
+        return Platform.isAndroid
+            ? 'http://10.0.2.2:5004/api/v1'
+            : 'http://localhost:5004/api/v1';
+      case Environment.staging:
+        return 'http://$_vpsHost:5004/api/v1';
+      case Environment.production:
+        return 'http://$_vpsHost:5004/api/v1';
     }
   }
 

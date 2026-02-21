@@ -40,5 +40,41 @@ namespace Identity.API.Controllers
                  return StatusCode(500, new { message = "Internal Server Error" });
             }
         }
+
+        // ─── Phone OTP Endpoints ─────────────────────────────────
+
+        [HttpPost("send-otp")]
+        public async Task<IActionResult> SendOtp([FromBody] SendOtpCommand command)
+        {
+            try
+            {
+                var response = await _mediator.Send(command);
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SendOtp] Error: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("verify-otp")]
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpCommand command)
+        {
+            try
+            {
+                var response = await _mediator.Send(command);
+                return Ok(response);
+            }
+            catch (Exception ex) when (ex.Message.Contains("Invalid or expired OTP"))
+            {
+                return Unauthorized(new { message = "Mã OTP không hợp lệ hoặc đã hết hạn" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[VerifyOtp] Error: {ex.Message}");
+                return StatusCode(500, new { message = "Internal Server Error" });
+            }
+        }
     }
 }

@@ -9,6 +9,7 @@ import '../../../../data/services/auth_service.dart';
 import '../../../../data/services/chat_service.dart';
 import '../../../../data/services/user_service.dart';
 import '../../widgets/common/custom_avatar.dart';
+import '../call/call_screen.dart';
 import '../group/group_invite_screen.dart';
 import '../group/group_members_screen.dart';
 import '../group/new_group_select_members_screen.dart';
@@ -1001,11 +1002,39 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     Icons.videocam_outlined,
                     color: Colors.black,
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CallScreen(
+                          calleeName: widget.isGroup
+                              ? _groupName
+                              : widget.otherUserName,
+                          calleeAvatar: widget.otherUserAvatar,
+                          callType: CallType.video,
+                          otherUserId: widget.chatId,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.call_outlined, color: Colors.black),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CallScreen(
+                          calleeName: widget.isGroup
+                              ? _groupName
+                              : widget.otherUserName,
+                          calleeAvatar: widget.otherUserAvatar,
+                          callType: CallType.audio,
+                          otherUserId: widget.chatId,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
       ),

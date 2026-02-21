@@ -1,15 +1,29 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'core/constants/app_colors.dart';
 import 'core/routes/app_routes.dart';
+import 'data/services/push_notification_service.dart';
 import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/chat_provider.dart';
 import 'presentation/providers/user_provider.dart';
-import 'presentation/screens/auth/login_screen.dart';
+import 'presentation/screens/auth/phone_input_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
+  // Register background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+  // Initialize push notifications
+  await PushNotificationService().initialize();
+
   runApp(const MyApp());
 }
 
@@ -69,7 +83,7 @@ class _AuthCheckerState extends State<AuthChecker> {
         // Show login screen if not authenticated, otherwise show home
         return authProvider.isAuthenticated
             ? const HomeScreen()
-            : const LoginScreen();
+            : const PhoneInputScreen();
       },
     );
   }

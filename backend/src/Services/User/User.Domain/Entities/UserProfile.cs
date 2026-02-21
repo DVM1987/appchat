@@ -19,6 +19,8 @@ namespace User.Domain.Entities
         public string? Bio { get; private set; }
         public UserStatus Status { get; private set; }
         public DateTime LastActive { get; private set; }
+        public string? DeviceToken { get; set; }     // FCM token for push notifications
+        public string? DevicePlatform { get; set; }  // "android" or "ios"
 
         private UserProfile() { } // For EF Core
 

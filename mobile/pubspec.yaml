@@ -65,6 +65,11 @@ dependencies:
   jwt_decoder: ^2.0.1
   dio: ^5.9.1
   emoji_picker_flutter: ^4.4.0
+  permission_handler: ^11.3.1
+  agora_rtc_engine: ^6.3.2
+  firebase_core: ^3.8.1
+  firebase_messaging: ^15.2.1
+  mobile_scanner: ^6.0.2
 
 dev_dependencies:
   flutter_test:

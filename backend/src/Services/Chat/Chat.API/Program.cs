@@ -31,6 +31,9 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Creat
 // Infrastructure Services (Mongo, Repos)
 builder.Services.AddChatInfrastructure(builder.Configuration);
 
+// Firebase Push Notification Service
+builder.Services.AddSingleton<Chat.API.Services.IPushNotificationService, Chat.API.Services.FirebasePushNotificationService>();
+
 // Authentication
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>

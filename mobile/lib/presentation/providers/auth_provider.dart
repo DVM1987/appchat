@@ -152,4 +152,61 @@ class AuthProvider with ChangeNotifier {
 
     notifyListeners();
   }
+
+  // ─── Phone OTP Auth ──────────────────────────────────────
+
+  // Send OTP to phone number
+  Future<void> sendOtp({required String phoneNumber}) async {
+    await _authService.sendOtp(phoneNumber: phoneNumber);
+  }
+
+  // Verify OTP and login
+  Future<bool> verifyOtp({
+    required String phoneNumber,
+    required String otpCode,
+    String? fullName,
+  }) async {
+    try {
+      final response = await _authService.verifyOtp(
+        phoneNumber: phoneNumber,
+        otpCode: otpCode,
+        fullName: fullName,
+      );
+
+      // Extract data
+      _token = response['token'] as String;
+      _tokenExpiresIn = response['expiresIn'] as int?;
+      _isAuthenticated = true;
+      final isNewUser = response['isNewUser'] as bool? ?? false;
+
+      // Calculate expiration
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final expiresAt = now + (_tokenExpiresIn ?? 3600);
+
+      // Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_token', _token!);
+      await prefs.setInt('token_expires_at', expiresAt);
+
+      // Decode token
+      Map<String, dynamic> decodedToken = JwtDecoder.decode(_token!);
+      if (decodedToken.containsKey('sub')) {
+        _userId = decodedToken['sub'];
+        await prefs.setString('user_id', _userId!);
+      }
+      if (decodedToken.containsKey('name')) {
+        _userName = decodedToken['name'];
+        await prefs.setString('user_name', _userName!);
+      }
+      if (decodedToken.containsKey('email')) {
+        _userEmail = decodedToken['email'];
+        await prefs.setString('user_email', _userEmail!);
+      }
+
+      notifyListeners();
+      return isNewUser;
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

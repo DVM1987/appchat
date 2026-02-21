@@ -2,6 +2,6 @@ namespace Identity.Application.Common.Interfaces
 {
     public interface IUserServiceClient
     {
-        Task CreateUserProfileAsync(Guid identityId, string email, string fullName);
+        Task CreateUserProfileAsync(Guid identityId, string phoneOrEmail, string fullName);
     }
 }

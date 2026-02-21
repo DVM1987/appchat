@@ -108,4 +108,62 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('user_name');
   }
+
+  // ─── Phone OTP Auth ──────────────────────────────────────
+
+  // Send OTP to phone number
+  Future<Map<String, dynamic>> sendOtp({required String phoneNumber}) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/auth/send-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'phoneNumber': phoneNumber}),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Không thể gửi OTP');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến server.');
+    }
+  }
+
+  // Verify OTP and get token
+  Future<Map<String, dynamic>> verifyOtp({
+    required String phoneNumber,
+    required String otpCode,
+    String? fullName,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'phoneNumber': phoneNumber,
+        'otpCode': otpCode,
+      };
+      if (fullName != null && fullName.isNotEmpty) {
+        body['fullName'] = fullName;
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/auth/verify-otp'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else if (response.statusCode == 401) {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Mã OTP không hợp lệ');
+      } else {
+        throw Exception('Lỗi server. Vui lòng thử lại.');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối đến server.');
+    }
+  }
 }

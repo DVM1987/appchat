@@ -89,5 +89,37 @@ namespace User.API.Controllers
             if (!result) return NotFound();
             return Ok();
         }
+
+        /// <summary>
+        /// Register a device token (FCM) for push notifications.
+        /// </summary>
+        [HttpPost("device-token")]
+        [Authorize]
+        public async Task<IActionResult> RegisterDeviceToken([FromBody] RegisterDeviceTokenRequest request)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var identityId))
+            {
+                return Unauthorized();
+            }
+
+            var profile = await _userRepository.GetByIdentityIdAsync(identityId);
+            if (profile == null) return NotFound(new { message = "User profile not found" });
+
+            // Store the device token
+            profile.DeviceToken = request.Token;
+            profile.DevicePlatform = request.Platform;
+            await _userRepository.UpdateAsync(profile);
+
+            Console.WriteLine($"[Users] Device token registered for user {profile.Id}: {request.Token?.Substring(0, Math.Min(20, request.Token?.Length ?? 0))}...");
+
+            return Ok(new { message = "Device token registered" });
+        }
+    }
+
+    public class RegisterDeviceTokenRequest
+    {
+        public string? Token { get; set; }
+        public string? Platform { get; set; } // "android" or "ios"
     }
 }

@@ -19,6 +19,7 @@ builder.Services.AddDbContext<Identity.Infrastructure.Persistence.IdentityDbCont
 // Dependency Injection
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.ITokenService, Identity.Infrastructure.Services.TokenService>();
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.IUserRepository, Identity.Infrastructure.Repositories.UserRepository>();
+builder.Services.AddScoped<Identity.Application.Common.Interfaces.IOtpRepository, Identity.Infrastructure.Repositories.OtpRepository>();
 builder.Services.AddScoped<BuildingBlocks.Core.IUnitOfWork, Identity.Infrastructure.Services.UnitOfWork>();
 
 // UserServiceClient for auto profile creation
@@ -47,15 +48,48 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// Apply migrations
+// Apply migrations / ensure schema is up to date
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<Identity.Infrastructure.Persistence.IdentityDbContext>();
-        // Using EnsureCreated as there are no migrations yet
+        
+        // Create database if it doesn't exist
         context.Database.EnsureCreated();
+        
+        // Apply schema updates for phone auth (safe to run multiple times)
+        var conn = context.Database.GetDbConnection();
+        await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        
+        // Add PhoneNumber column if not exists
+        cmd.CommandText = @"
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='Users' AND column_name='PhoneNumber') THEN
+                    ALTER TABLE ""Users"" ADD COLUMN ""PhoneNumber"" VARCHAR(20) NULL;
+                    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Users_PhoneNumber"" ON ""Users"" (""PhoneNumber"") WHERE ""PhoneNumber"" IS NOT NULL;
+                END IF;
+            END $$;
+            
+            ALTER TABLE ""Users"" ALTER COLUMN ""Email"" DROP NOT NULL;
+            ALTER TABLE ""Users"" ALTER COLUMN ""PasswordHash"" DROP NOT NULL;
+            
+            CREATE TABLE IF NOT EXISTS ""OtpEntries"" (
+                ""Id"" UUID NOT NULL PRIMARY KEY,
+                ""PhoneNumber"" VARCHAR(20) NOT NULL,
+                ""Code"" VARCHAR(10) NOT NULL,
+                ""ExpiresAt"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                ""IsUsed"" BOOLEAN NOT NULL DEFAULT FALSE,
+                ""CreatedAt"" TIMESTAMP WITH TIME ZONE NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS ""IX_OtpEntries_PhoneNumber"" ON ""OtpEntries"" (""PhoneNumber"");
+        ";
+        await cmd.ExecuteNonQueryAsync();
+        
+        Console.WriteLine("[DB] Schema migration for Phone Auth completed successfully.");
     }
     catch (Exception ex)
     {

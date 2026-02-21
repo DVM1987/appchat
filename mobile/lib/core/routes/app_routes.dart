@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../presentation/screens/auth/login_screen.dart';
+import '../../presentation/screens/auth/phone_input_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
 import '../../presentation/screens/chat/chat_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
@@ -27,7 +27,7 @@ class AppRoutes {
 
       case login:
         return MaterialPageRoute(
-          builder: (_) => const LoginScreen(),
+          builder: (_) => const PhoneInputScreen(),
           settings: settings,
         );
 

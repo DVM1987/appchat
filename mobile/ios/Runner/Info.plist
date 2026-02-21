@@ -46,10 +46,23 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to take photos for chat messages.</string>
+	<string>Ứng dụng cần quyền truy cập camera để chụp và gửi ảnh trong cuộc trò chuyện.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>This app needs photo library access to select photos for chat messages.</string>
+	<string>Ứng dụng cần quyền truy cập thư viện ảnh để chọn và gửi ảnh trong cuộc trò chuyện.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>This app needs microphone access to record videos.</string>
+	<string>Ứng dụng cần quyền truy cập microphone để ghi âm tin nhắn thoại và thực hiện cuộc gọi.</string>
+
+	<!-- Deep Link URL Scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>appchat</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.appchat.deeplink</string>
+		</dict>
+	</array>
 </dict>
 </plist>

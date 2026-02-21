@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/custom_avatar.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Optional: If null, show current user
@@ -114,6 +115,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // Navigation is handled by AuthChecker in main.dart
   }
 
+  void _openEditProfile() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    );
+    if (result == true && mounted) {
+      // Refresh profile after edit
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -215,34 +227,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Info Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceLight,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+            // Info Card (tappable to edit)
+            GestureDetector(
+              onTap: _isSelf ? () => _openEditProfile() : null,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceLight,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    email,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 16,
+                    const SizedBox(height: 8),
+                    Text(
+                      email,
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                    if (_isSelf) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Nhấn để chỉnh sửa hồ sơ',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
 
@@ -250,6 +275,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             if (_isSelf) ...[
               // Settings Options
+              _buildOptionItem(
+                Icons.edit,
+                'Chỉnh sửa hồ sơ',
+                onTap: _openEditProfile,
+              ),
               _buildOptionItem(Icons.settings, 'Cài đặt tài khoản'),
               _buildOptionItem(Icons.notifications, 'Thông báo'),
               _buildOptionItem(Icons.privacy_tip, 'Quyền riêng tư'),
@@ -265,34 +295,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildOptionItem(IconData icon, String title) {
+  Widget _buildOptionItem(IconData icon, String title, {VoidCallback? onTap}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.textSecondary),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: AppColors.textSecondary),
+              const SizedBox(width: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
-            const Spacer(),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: AppColors.textPlaceholder,
-              size: 16,
-            ),
-          ],
+              const Spacer(),
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: AppColors.textPlaceholder,
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ),
     );

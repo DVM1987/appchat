@@ -115,6 +115,10 @@ services:
       - "5002:8080"
     environment:
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=chat_db;Username=admin;Password=password
+      - JwtSettings__SecretKey=super_secret_key_needs_to_be_long_enough_at_least_32_chars
+      - JwtSettings__Issuer=ChatApp
+      - JwtSettings__Audience=ChatAppUsers
+      - JwtSettings__ExpiryMinutes=60
       - UserServiceUrl=http://user_service:8080
     networks:
       - chat_network
@@ -135,6 +139,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - DatabaseSettings__ConnectionString=mongodb://admin:password@mongo:27017
       - DatabaseSettings__DatabaseName=ChatDb
+      - JwtSettings__SecretKey=super_secret_key_needs_to_be_long_enough_at_least_32_chars
+      - JwtSettings__Issuer=ChatApp
+      - JwtSettings__Audience=ChatAppUsers
     ports:
       - "5003:8080"
     volumes:
@@ -158,6 +165,9 @@ services:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=user_db;Username=admin;Password=password
       - EventBusSettings__HostAddress=amqp://guest:guest@rabbitmq:5672
+      - Jwt__Key=super_secret_key_needs_to_be_long_enough_at_least_32_chars
+      - Jwt__Issuer=ChatApp
+      - Jwt__Audience=ChatAppUsers
     ports:
       - "5004:8080"
     networks:
@@ -180,6 +190,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__Redis=chat_redis:6379
+      - JwtSettings__SecretKey=super_secret_key_needs_to_be_long_enough_at_least_32_chars
+      - JwtSettings__Issuer=ChatApp
+      - JwtSettings__Audience=ChatAppUsers
     depends_on:
       - redis
     networks:

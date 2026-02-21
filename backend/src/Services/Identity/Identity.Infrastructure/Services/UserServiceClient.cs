@@ -13,12 +13,12 @@ namespace Identity.Infrastructure.Services
             _httpClient = httpClient;
         }
 
-        public async Task CreateUserProfileAsync(Guid identityId, string email, string fullName)
+        public async Task CreateUserProfileAsync(Guid identityId, string phoneOrEmail, string fullName)
         {
             var request = new
             {
                 identityId = identityId,
-                email = email,
+                email = phoneOrEmail,
                 fullName = fullName
             };
 

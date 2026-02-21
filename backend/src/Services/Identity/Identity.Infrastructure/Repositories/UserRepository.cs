@@ -28,5 +28,15 @@ namespace Identity.Infrastructure.Repositories
         {
             return !await _context.Users.AnyAsync(u => u.Email == email);
         }
+
+        public async Task<User?> GetByPhoneAsync(string phoneNumber)
+        {
+            return await _context.Users.FirstOrDefaultAsync(u => u.PhoneNumber == phoneNumber);
+        }
+
+        public async Task<bool> IsPhoneUniqueAsync(string phoneNumber)
+        {
+            return !await _context.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
+        }
     }
 }

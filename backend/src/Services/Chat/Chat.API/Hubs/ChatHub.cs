@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Chat.Domain.Interfaces;
 using System.Collections.Concurrent;
 
 namespace Chat.API.Hubs
 {
+    [Authorize]
     public class ChatHub : Hub
     {
         // Mapping between UserId and ConnectionIds
@@ -71,6 +73,63 @@ namespace Chat.API.Hubs
             }
             
             Console.WriteLine($"[ChatHub] Broadcasted MessagesRead to participants for {conversationId}");
+        }
+
+        // ===== CALL SIGNALING =====
+
+        public async Task InitiateCall(string calleeId, string callType, string callerName, string? callerAvatar)
+        {
+            var callerId = Context.UserIdentifier;
+            if (string.IsNullOrEmpty(callerId)) return;
+
+            Console.WriteLine($"[ChatHub] InitiateCall from {callerId} to {calleeId}, type={callType}");
+
+            await Clients.Group(calleeId).SendAsync("IncomingCall", new
+            {
+                CallerId = callerId,
+                CallerName = callerName,
+                CallerAvatar = callerAvatar,
+                CallType = callType
+            });
+        }
+
+        public async Task AcceptCall(string callerId)
+        {
+            var calleeId = Context.UserIdentifier;
+            if (string.IsNullOrEmpty(calleeId)) return;
+
+            Console.WriteLine($"[ChatHub] AcceptCall: {calleeId} accepted call from {callerId}");
+
+            await Clients.Group(callerId).SendAsync("CallAccepted", new
+            {
+                CalleeId = calleeId
+            });
+        }
+
+        public async Task RejectCall(string callerId)
+        {
+            var calleeId = Context.UserIdentifier;
+            if (string.IsNullOrEmpty(calleeId)) return;
+
+            Console.WriteLine($"[ChatHub] RejectCall: {calleeId} rejected call from {callerId}");
+
+            await Clients.Group(callerId).SendAsync("CallRejected", new
+            {
+                CalleeId = calleeId
+            });
+        }
+
+        public async Task EndCall(string otherUserId)
+        {
+            var userId = Context.UserIdentifier;
+            if (string.IsNullOrEmpty(userId)) return;
+
+            Console.WriteLine($"[ChatHub] EndCall: {userId} ended call with {otherUserId}");
+
+            await Clients.Group(otherUserId).SendAsync("CallEnded", new
+            {
+                UserId = userId
+            });
         }
     }
 }

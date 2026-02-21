@@ -1,5 +1,6 @@
 using Chat.Application.Features.Conversations;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Chat.API.Models;
@@ -9,6 +10,7 @@ namespace Chat.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    [Authorize]
     public class ConversationsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -70,8 +72,14 @@ namespace Chat.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetMyConversations([FromQuery] string userId)
+        public async Task<IActionResult> GetMyConversations()
         {
+            var userId = User.FindFirst("sub")?.Value 
+                      ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized(new { message = "User identity not found in token" });
+
             var result = await _mediator.Send(new GetConversationsQuery(userId));
             return Ok(result);
         }

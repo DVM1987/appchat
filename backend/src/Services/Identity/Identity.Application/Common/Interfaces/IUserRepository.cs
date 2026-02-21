@@ -7,5 +7,7 @@ namespace Identity.Application.Common.Interfaces
         Task<bool> IsEmailUniqueAsync(string email);
         Task AddAsync(User user);
         Task<User?> GetByEmailAsync(string email);
+        Task<User?> GetByPhoneAsync(string phoneNumber);
+        Task<bool> IsPhoneUniqueAsync(string phoneNumber);
     }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import 'qr_scanner_screen.dart';
+
 class GroupInviteScreen extends StatelessWidget {
   final String groupName;
   final String? inviteToken;
@@ -23,12 +25,21 @@ class GroupInviteScreen extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+            ),
+            icon: const Icon(Icons.qr_code_scanner),
+            tooltip: 'Quét mã QR',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // Group Icon placeholder or real one
             CircleAvatar(
               radius: 40,
               backgroundColor: Colors.blue.withValues(alpha: 0.1),
@@ -47,7 +58,7 @@ class GroupInviteScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // QR Code Section
+            // QR Code
             if (inviteToken != null) ...[
               Container(
                 padding: const EdgeInsets.all(16),
@@ -69,36 +80,76 @@ class GroupInviteScreen extends StatelessWidget {
                   backgroundColor: Colors.white,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
             ],
-            
-            // Invite Link Box
-            _buildActionBox(
-              context: context,
+
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: _buildButton(
+                    icon: Icons.copy,
+                    label: 'Sao chép',
+                    color: Colors.blue,
+                    onTap: () => _copyToClipboard(
+                      context,
+                      _inviteLink,
+                      'Đã sao chép liên kết',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildButton(
+                    icon: Icons.qr_code_scanner,
+                    label: 'Quét mã',
+                    color: Colors.green,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const QrScannerScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Invite Link
+            _buildInfoBox(
               title: 'Liên kết mời',
               content: _inviteLink,
-              onCopy: () => _copyToClipboard(context, _inviteLink, 'Đã sao chép liên kết'),
+              onCopy: () => _copyToClipboard(
+                context,
+                _inviteLink,
+                'Đã sao chép liên kết',
+              ),
             ),
-            
             const SizedBox(height: 16),
-            
-            // Token Box
-            _buildActionBox(
-              context: context,
+
+            // Token
+            _buildInfoBox(
               title: 'Mã mời',
               subtitle: 'Dùng mã này để tham gia thủ công',
               content: inviteToken ?? '---',
               isToken: true,
-              onCopy: () => _copyToClipboard(context, inviteToken ?? '', 'Đã sao chép mã mời'),
+              onCopy: () => _copyToClipboard(
+                context,
+                inviteToken ?? '',
+                'Đã sao chép mã mời',
+              ),
             ),
-            
             const SizedBox(height: 40),
-            
-            // Note
+
             const Text(
               'Lưu ý: Bạn có thể thu hồi liên kết này bất cứ lúc nào trong phần cài đặt nhóm.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ],
         ),
@@ -106,8 +157,41 @@ class GroupInviteScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionBox({
-    required BuildContext context,
+  Widget _buildButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = Colors.blue,
+  }) {
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoBox({
     required String title,
     String? subtitle,
     required String content,
@@ -126,7 +210,11 @@ class GroupInviteScreen extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),

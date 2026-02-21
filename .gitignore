@@ -20,3 +20,8 @@ Thumbs.db
 
 # Gemini agent
 .gemini/
+
+# Firebase Admin SDK key (sensitive)
+backend/src/Services/Chat/Chat.API/firebase-admin-sdk.json
+google-services.json
+GoogleService-Info.plist
