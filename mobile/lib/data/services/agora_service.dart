@@ -24,12 +24,32 @@ class AgoraService {
 
   /// Request camera and microphone permissions
   Future<bool> requestPermissions({bool isVideo = false}) async {
-    final micStatus = await Permission.microphone.request();
-    if (!micStatus.isGranted) return false;
+    var micStatus = await Permission.microphone.status;
+
+    if (micStatus.isDenied) {
+      micStatus = await Permission.microphone.request();
+    }
+
+    if (micStatus.isPermanentlyDenied || !micStatus.isGranted) {
+      // Open app settings so user can manually enable
+      await openAppSettings();
+      // Re-check after returning from settings
+      micStatus = await Permission.microphone.status;
+      if (!micStatus.isGranted) return false;
+    }
 
     if (isVideo) {
-      final cameraStatus = await Permission.camera.request();
-      if (!cameraStatus.isGranted) return false;
+      var cameraStatus = await Permission.camera.status;
+
+      if (cameraStatus.isDenied) {
+        cameraStatus = await Permission.camera.request();
+      }
+
+      if (cameraStatus.isPermanentlyDenied || !cameraStatus.isGranted) {
+        await openAppSettings();
+        cameraStatus = await Permission.camera.status;
+        if (!cameraStatus.isGranted) return false;
+      }
     }
 
     return true;
@@ -106,7 +126,6 @@ class AgoraService {
 
     // Always enable audio
     await _engine!.enableAudio();
-    await _engine!.setEnableSpeakerphone(false); // earpiece by default
     print('[Agora] Audio enabled');
 
     if (isVideo) {
