@@ -104,7 +104,23 @@ namespace User.API.Controllers
             }
 
             var profile = await _userRepository.GetByIdentityIdAsync(identityId);
-            if (profile == null) return NotFound(new { message = "User profile not found" });
+            if (profile == null)
+            {
+                // Auto-create profile if it doesn't exist yet
+                Console.WriteLine($"[Users] Profile not found for {identityId}, creating new one for device token registration");
+                profile = new User.Domain.Entities.UserProfile
+                {
+                    IdentityId = identityId,
+                    FullName = User.FindFirst("name")?.Value ?? "User",
+                    Email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
+                    DeviceToken = request.Token,
+                    DevicePlatform = request.Platform,
+                    LastActive = DateTime.UtcNow
+                };
+                await _userRepository.CreateAsync(profile);
+                Console.WriteLine($"[Users] Created new profile {profile.Id} with device token");
+                return Ok(new { message = "Profile created and device token registered" });
+            }
 
             // Store the device token
             profile.DeviceToken = request.Token;
