@@ -27,7 +27,7 @@ class ConversationModel extends Conversation {
       avatarUrl: json['avatarUrl'] as String?,
       lastMessage: json['lastMessage'] as String?,
       lastMessageTime: json['lastMessageTime'] != null
-          ? DateTime.parse(json['lastMessageTime'] as String)
+          ? _parseUtcDateTime(json['lastMessageTime'] as String)
           : null,
       lastMessageType: json['lastMessageType'] != null
           ? MessageType.values.firstWhere(
@@ -52,6 +52,15 @@ class ConversationModel extends Conversation {
       creatorId: json['creatorId'] as String?,
       description: json['description'] as String?,
     );
+  }
+
+  static DateTime _parseUtcDateTime(String raw) {
+    var str = raw;
+    // If no timezone info, treat as UTC
+    if (!str.endsWith('Z') && !str.contains('+') && !str.contains('-', 10)) {
+      str = '${str}Z';
+    }
+    return DateTime.tryParse(str)?.toLocal() ?? DateTime.now();
   }
 
   Map<String, dynamic> toJson() {

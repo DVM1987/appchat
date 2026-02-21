@@ -30,11 +30,11 @@ class _ChatListState extends State<ChatList> {
     super.initState();
     _scrollController.addListener(_onScroll);
 
-    // Load conversations once when widget is first built
+    // Load conversations when widget is first built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ChatProvider>();
-      if (!provider.hasConversations && !provider.isLoading) {
-        provider.loadConversations();
+      if (!provider.isLoading) {
+        provider.loadConversations(refresh: provider.hasConversations);
       }
     });
   }

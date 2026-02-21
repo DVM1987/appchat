@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 
-import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/services/agora_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -53,6 +52,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   int? _remoteUid;
   bool _agoraJoined = false;
+  String? _channelName; // Store the channel name for use in video views
 
   @override
   void initState() {
@@ -114,46 +114,68 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   /// Initialize Agora engine and join the channel
   Future<void> _initAndJoinAgora() async {
-    final isVideo = widget.callType == CallType.video;
+    try {
+      final isVideo = widget.callType == CallType.video;
 
-    // Request permissions
-    final granted = await _agoraService.requestPermissions(isVideo: isVideo);
-    if (!granted) {
-      _showCallMessage('Cần cấp quyền micro${isVideo ? ' và camera' : ''}');
-      return;
-    }
-
-    // Setup Agora callbacks
-    _agoraService.onUserJoined = (int remoteUid) {
-      if (mounted) {
-        setState(() => _remoteUid = remoteUid);
+      // Request permissions
+      final granted = await _agoraService.requestPermissions(isVideo: isVideo);
+      if (!granted) {
+        _showCallMessage('Cần cấp quyền micro${isVideo ? ' và camera' : ''}');
+        return;
       }
-    };
 
-    _agoraService.onUserOffline = (int remoteUid) {
+      // Setup Agora callbacks BEFORE initializing so we don't miss events
+      _agoraService.onUserJoined = (int remoteUid) {
+        print('[Call] 🎉 Remote user joined Agora: $remoteUid');
+        if (mounted) {
+          setState(() => _remoteUid = remoteUid);
+        }
+      };
+
+      _agoraService.onUserOffline = (int remoteUid) {
+        print('[Call] ❌ Remote user left Agora: $remoteUid');
+        if (mounted) {
+          setState(() => _remoteUid = null);
+        }
+      };
+
+      // Initialize engine
+      await _agoraService.initialize(isVideo: isVideo);
+
+      // Generate channel name (deterministic for both sides)
+      final myUserId = await AuthService.getUserId() ?? '';
+      final channelName = AgoraService.generateChannelName(
+        myUserId,
+        widget.otherUserId,
+      );
+      final uid = AgoraService.generateUid(myUserId);
+
+      print('[Call] 📞 myUserId: $myUserId');
+      print('[Call] 📞 otherUserId: ${widget.otherUserId}');
+      print('[Call] 📞 channelName: $channelName');
+      print('[Call] 📞 uid: $uid');
+
+      // Store channel name for use in video views
       if (mounted) {
-        setState(() => _remoteUid = null);
+        setState(() => _channelName = channelName);
       }
-    };
 
-    // Initialize engine
-    await _agoraService.initialize(isVideo: isVideo);
+      // Join channel
+      await _agoraService.joinChannel(channelName: channelName, uid: uid);
 
-    // Generate channel name (deterministic for both sides)
-    final myUserId = await AuthService.getUserId() ?? '';
-    final channelName = AgoraService.generateChannelName(
-      myUserId,
-      widget.otherUserId,
-    );
-    final uid = AgoraService.generateUid(myUserId);
+      // Start local video preview if needed
+      if (isVideo) {
+        await _agoraService.engine?.startPreview();
+      }
 
-    AppConfig.log('[Call] Joining Agora channel: $channelName with uid: $uid');
-
-    // Join channel
-    await _agoraService.joinChannel(channelName: channelName, uid: uid);
-
-    if (mounted) {
-      setState(() => _agoraJoined = true);
+      if (mounted) {
+        setState(() => _agoraJoined = true);
+      }
+      print('[Call] ✅ Agora joined successfully');
+    } catch (e, stack) {
+      print('[Call] ❌ Error in _initAndJoinAgora: $e');
+      print('[Call] ❌ Stack: $stack');
+      _showCallMessage('Lỗi kết nối âm thanh: $e');
     }
   }
 
@@ -282,17 +304,16 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       body: Stack(
         children: [
           // Background — remote video or gradient
-          if (isVideo && isConnected && _remoteUid != null && _agoraJoined)
+          if (isVideo &&
+              isConnected &&
+              _remoteUid != null &&
+              _agoraJoined &&
+              _channelName != null)
             AgoraVideoView(
               controller: VideoViewController.remote(
                 rtcEngine: _agoraService.engine!,
                 canvas: VideoCanvas(uid: _remoteUid!),
-                connection: RtcConnection(
-                  channelId: AgoraService.generateChannelName(
-                    '', // Will be computed properly
-                    widget.otherUserId,
-                  ),
-                ),
+                connection: RtcConnection(channelId: _channelName!),
               ),
             )
           else
@@ -345,6 +366,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           // Main content
           SafeArea(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const SizedBox(height: 80),
 
@@ -387,6 +409,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                 // Name
                 Text(
                   widget.calleeName,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 28,
@@ -398,6 +421,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                 // Status
                 Text(
                   _getStatusText(isCaller, isCallee, isRinging, isConnected),
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: isConnected
                         ? AppColors.primary
@@ -415,6 +439,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
                 // Controls
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 32,
@@ -458,12 +483,14 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
                       // Caller ringing: only End call
                       if (isCaller && isRinging) ...[
                         const SizedBox(height: 20),
-                        _buildActionButton(
-                          icon: Icons.call_end,
-                          color: Colors.red,
-                          label: 'Huỷ',
-                          onTap: () => _endCall(),
-                          size: 70,
+                        Center(
+                          child: _buildActionButton(
+                            icon: Icons.call_end,
+                            color: Colors.red,
+                            label: 'Huỷ',
+                            onTap: () => _endCall(),
+                            size: 70,
+                          ),
                         ),
                       ],
 

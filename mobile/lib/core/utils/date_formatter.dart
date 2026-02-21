@@ -8,7 +8,7 @@ class DateFormatter {
 
     if (difference.inDays == 0) {
       // Today - show time
-      return DateFormat('h:mm a').format(dateTime);
+      return DateFormat('HH:mm').format(dateTime);
     } else if (difference.inDays < 7) {
       // This week - show day name
       return DateFormat('EEEE').format(dateTime);

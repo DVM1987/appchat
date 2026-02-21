@@ -11,7 +11,15 @@ String formatTime(DateTime date) {
 DateTime parseMessageDate(dynamic message) {
   final raw = message['createdAt'] ?? message['CreatedAt'];
   if (raw is DateTime) return raw.toLocal();
-  return DateTime.tryParse(raw?.toString() ?? '')?.toLocal() ?? DateTime.now();
+  var str = raw?.toString() ?? '';
+  // If no timezone info, treat as UTC by appending 'Z'
+  if (str.isNotEmpty &&
+      !str.endsWith('Z') &&
+      !str.contains('+') &&
+      !str.contains('-', 10)) {
+    str = '${str}Z';
+  }
+  return DateTime.tryParse(str)?.toLocal() ?? DateTime.now();
 }
 
 /// Extract the message ID from a message map.

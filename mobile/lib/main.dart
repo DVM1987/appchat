@@ -65,6 +65,8 @@ class AuthChecker extends StatefulWidget {
 }
 
 class _AuthCheckerState extends State<AuthChecker> {
+  bool _callbacksRegistered = false;
+
   @override
   void initState() {
     super.initState();
@@ -73,7 +75,25 @@ class _AuthCheckerState extends State<AuthChecker> {
 
   Future<void> _checkAuthStatus() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    _registerLogoutCallbacks(authProvider);
     await authProvider.checkAuthStatus();
+  }
+
+  /// Register cleanup callbacks exactly once so that when the user
+  /// logs out, ChatProvider and UserProvider are reset.
+  void _registerLogoutCallbacks(AuthProvider authProvider) {
+    if (_callbacksRegistered) return;
+    _callbacksRegistered = true;
+
+    authProvider.onLogout(() {
+      // Clear stale conversation / user data
+      try {
+        context.read<ChatProvider>().clear();
+      } catch (_) {}
+      try {
+        context.read<UserProvider>().clear();
+      } catch (_) {}
+    });
   }
 
   @override

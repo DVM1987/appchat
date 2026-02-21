@@ -150,8 +150,17 @@ class AuthProvider with ChangeNotifier {
     await prefs.remove('user_email');
     await prefs.remove('token_expires_at');
 
+    // Notify any registered logout callbacks (to clear providers)
+    for (final cb in _logoutCallbacks) {
+      cb();
+    }
+
     notifyListeners();
   }
+
+  // Logout callbacks — allows providers to register cleanup
+  final List<VoidCallback> _logoutCallbacks = [];
+  void onLogout(VoidCallback callback) => _logoutCallbacks.add(callback);
 
   // ─── Phone OTP Auth ──────────────────────────────────────
 
