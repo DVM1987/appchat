@@ -47,13 +47,18 @@ class PushNotificationService {
       return;
     }
 
-    // 2. Get FCM token
-    _fcmToken = await _messaging.getToken();
-    AppConfig.log('[FCM] Token: $_fcmToken');
+    // 2. Get FCM token (may fail on iOS if APNS entitlement not configured)
+    try {
+      _fcmToken = await _messaging.getToken();
+      AppConfig.log('[FCM] Token: $_fcmToken');
 
-    if (_fcmToken != null) {
-      await _registerTokenWithBackend(_fcmToken!);
-      await _saveTokenLocally(_fcmToken!);
+      if (_fcmToken != null) {
+        await _registerTokenWithBackend(_fcmToken!);
+        await _saveTokenLocally(_fcmToken!);
+      }
+    } catch (e) {
+      AppConfig.log('[FCM] Could not get token (APNS not configured?): $e');
+      // App continues without push notifications
     }
 
     // 3. Listen for token refresh
