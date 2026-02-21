@@ -87,17 +87,36 @@ class PushNotificationService {
     // ── 2. Setup local notifications (Android channel + init) ──
     await _setupLocalNotifications();
 
-    // ── 3. Get FCM token ──
+    // ── 3. Get FCM token (iOS needs APNs token first) ──
     try {
+      if (Platform.isIOS) {
+        // On iOS, we must wait for APNs token before getting FCM token
+        String? apnsToken = await _messaging.getAPNSToken();
+        int retries = 0;
+        while (apnsToken == null && retries < 10) {
+          print('[FCM] Waiting for APNs token... attempt ${retries + 1}');
+          await Future.delayed(const Duration(seconds: 2));
+          apnsToken = await _messaging.getAPNSToken();
+          retries++;
+        }
+        if (apnsToken != null) {
+          print('[FCM] APNs token received');
+        } else {
+          print('[FCM] WARNING: APNs token still null after retries');
+        }
+      }
+
       _fcmToken = await _messaging.getToken();
-      AppConfig.log('[FCM] Token: $_fcmToken');
+      print('[FCM] Got FCM token: ${_fcmToken?.substring(0, 20)}...');
 
       if (_fcmToken != null) {
         await _registerTokenWithBackend(_fcmToken!);
         await _saveTokenLocally(_fcmToken!);
+      } else {
+        print('[FCM] WARNING: FCM token is NULL!');
       }
     } catch (e) {
-      AppConfig.log('[FCM] Could not get token: $e');
+      print('[FCM] ERROR getting token: $e');
     }
 
     // ── 4. Token refresh ──
@@ -299,10 +318,19 @@ class PushNotificationService {
   Future<void> _registerTokenWithBackend(String fcmToken) async {
     try {
       final authToken = await AuthService.getToken();
-      if (authToken == null) return;
+      if (authToken == null) {
+        print('[FCM] WARNING: authToken is NULL, cannot register device token');
+        return;
+      }
+
+      final url = '${AppConfig.userApiBaseUrl}/users/device-token';
+      print('[FCM] Registering token with backend: $url');
+      print('[FCM] Auth token: ${authToken.substring(0, 20)}...');
+      print('[FCM] FCM token: ${fcmToken.substring(0, 20)}...');
+      print('[FCM] Platform: ${Platform.isIOS ? "ios" : "android"}');
 
       final response = await http.post(
-        Uri.parse('${AppConfig.userApiBaseUrl}/users/device-token'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
@@ -313,29 +341,53 @@ class PushNotificationService {
         }),
       );
 
+      print('[FCM] Register response: ${response.statusCode} ${response.body}');
+
       if (response.statusCode == 200) {
-        AppConfig.log('[FCM] Token registered with backend');
+        print('[FCM] ✅ Token registered successfully!');
       } else {
-        AppConfig.log('[FCM] Failed to register token: ${response.statusCode}');
+        print(
+          '[FCM] ❌ Failed to register token: ${response.statusCode} ${response.body}',
+        );
       }
     } catch (e) {
-      AppConfig.log('[FCM] Error registering token: $e');
+      print('[FCM] ❌ Error registering token: $e');
     }
   }
 
   /// Re-register FCM token after login (important for new/returning users)
   Future<void> reRegisterToken() async {
+    print(
+      '[FCM] reRegisterToken called, existing token: ${_fcmToken != null ? "YES" : "NO"}',
+    );
     if (_fcmToken != null) {
       await _registerTokenWithBackend(_fcmToken!);
     } else {
       try {
+        // On iOS, wait for APNs token first
+        if (Platform.isIOS) {
+          String? apnsToken = await _messaging.getAPNSToken();
+          int retries = 0;
+          while (apnsToken == null && retries < 5) {
+            print(
+              '[FCM] reRegister: waiting for APNs... attempt ${retries + 1}',
+            );
+            await Future.delayed(const Duration(seconds: 2));
+            apnsToken = await _messaging.getAPNSToken();
+            retries++;
+          }
+        }
+
         _fcmToken = await _messaging.getToken();
+        print(
+          '[FCM] reRegister got token: ${_fcmToken != null ? "YES" : "NO"}',
+        );
         if (_fcmToken != null) {
           await _registerTokenWithBackend(_fcmToken!);
           await _saveTokenLocally(_fcmToken!);
         }
       } catch (e) {
-        AppConfig.log('[FCM] Error re-registering token: $e');
+        print('[FCM] Error re-registering token: $e');
       }
     }
   }
