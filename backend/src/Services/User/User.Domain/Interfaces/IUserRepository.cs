@@ -12,5 +12,6 @@ namespace User.Domain.Interfaces
         Task<List<UserProfile>> SearchAsync(string query);
         Task<UserProfile?> GetByEmailAsync(string email);
         Task<List<UserProfile>> GetByIdsAsync(List<Guid> ids);
+        Task<List<UserProfile>> GetByIdentityIdsAsync(List<Guid> identityIds);
     }
 }

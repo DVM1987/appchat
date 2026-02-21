@@ -115,11 +115,53 @@ namespace User.API.Controllers
 
             return Ok(new { message = "Device token registered" });
         }
+
+        /// <summary>
+        /// Internal endpoint for Chat.API to fetch device tokens by identity IDs.
+        /// Used for sending push notifications when new messages arrive.
+        /// </summary>
+        [HttpPost("device-tokens")]
+        public async Task<IActionResult> GetDeviceTokens([FromBody] GetDeviceTokensRequest request)
+        {
+            if (request.IdentityIds == null || !request.IdentityIds.Any())
+            {
+                return Ok(new List<object>());
+            }
+
+            var guids = new List<Guid>();
+            foreach (var id in request.IdentityIds)
+            {
+                if (Guid.TryParse(id, out var guid))
+                {
+                    guids.Add(guid);
+                }
+            }
+
+            var profiles = await _userRepository.GetByIdentityIdsAsync(guids);
+
+            var result = profiles
+                .Where(p => !string.IsNullOrEmpty(p.DeviceToken))
+                .Select(p => new
+                {
+                    identityId = p.IdentityId.ToString(),
+                    fullName = p.FullName,
+                    deviceToken = p.DeviceToken,
+                    platform = p.DevicePlatform
+                })
+                .ToList();
+
+            return Ok(result);
+        }
     }
 
     public class RegisterDeviceTokenRequest
     {
         public string? Token { get; set; }
         public string? Platform { get; set; } // "android" or "ios"
+    }
+
+    public class GetDeviceTokensRequest
+    {
+        public List<string> IdentityIds { get; set; } = new();
     }
 }

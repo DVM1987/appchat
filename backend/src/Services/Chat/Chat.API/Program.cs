@@ -34,6 +34,16 @@ builder.Services.AddChatInfrastructure(builder.Configuration);
 // Firebase Push Notification Service
 builder.Services.AddSingleton<Chat.API.Services.IPushNotificationService, Chat.API.Services.FirebasePushNotificationService>();
 
+// User Service HTTP Client (for fetching device tokens from User.API)
+builder.Services.AddHttpClient<Chat.API.Services.IUserServiceClient, Chat.API.Services.UserServiceClient>(client =>
+{
+    // In Docker network, User.API runs on http://user_service:8080
+    // In local dev, it runs on http://localhost:5004
+    var userServiceUrl = builder.Configuration["UserServiceUrl"] ?? "http://user_service:8080";
+    client.BaseAddress = new Uri(userServiceUrl);
+    client.Timeout = TimeSpan.FromSeconds(5); // Quick timeout for internal calls
+});
+
 // Authentication
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>

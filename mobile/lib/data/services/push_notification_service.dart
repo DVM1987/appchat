@@ -1,23 +1,58 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/config/app_config.dart';
 import 'auth_service.dart';
 
-/// Handles Firebase background messages (must be top-level function)
+/// ─────────────────────────────────────────────
+/// TOP-LEVEL background handler (required by FCM)
+/// ─────────────────────────────────────────────
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  AppConfig.log('[FCM] Background message: ${message.messageId}');
+  // Show local notification even when app is terminated
+  await PushNotificationService._showLocalNotification(message);
+  print('[FCM] Background message handled: ${message.messageId}');
 }
 
-/// PushNotificationService manages Firebase Cloud Messaging (FCM)
-/// for receiving push notifications when the app is in background/terminated.
+/// ─────────────────────────────────────────────
+/// Flutter Local Notifications plugin instance (shared)
+/// ─────────────────────────────────────────────
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
+/// ─────────────────────────────────────────────
+/// Android notification channel
+/// ─────────────────────────────────────────────
+const AndroidNotificationChannel _messageChannel = AndroidNotificationChannel(
+  'appchat_messages', // must match backend AndroidNotification.ChannelId
+  'Tin nhắn',
+  description: 'Thông báo tin nhắn mới từ AppChat',
+  importance: Importance.high,
+  playSound: true,
+  enableVibration: true,
+  showBadge: true,
+);
+
+const AndroidNotificationChannel _callChannel = AndroidNotificationChannel(
+  'appchat_calls',
+  'Cuộc gọi',
+  description: 'Thông báo cuộc gọi đến',
+  importance: Importance.max,
+  playSound: true,
+  enableVibration: true,
+);
+
+/// ─────────────────────────────────────────────
+/// PushNotificationService — singleton
+/// ─────────────────────────────────────────────
 class PushNotificationService {
   static final PushNotificationService _instance =
       PushNotificationService._internal();
@@ -29,9 +64,11 @@ class PushNotificationService {
 
   String? get fcmToken => _fcmToken;
 
-  /// Initialize FCM — call this from main.dart after Firebase.initializeApp()
+  // ════════════════════════════════════════════
+  // INIT
+  // ════════════════════════════════════════════
   Future<void> initialize() async {
-    // 1. Request notification permissions (iOS & Android 13+)
+    // ── 1. Request permission ──
     final settings = await _messaging.requestPermission(
       alert: true,
       badge: true,
@@ -39,7 +76,7 @@ class PushNotificationService {
       provisional: false,
     );
 
-    AppConfig.log('[FCM] Permission status: ${settings.authorizationStatus}');
+    AppConfig.log('[FCM] Permission: ${settings.authorizationStatus}');
 
     if (settings.authorizationStatus != AuthorizationStatus.authorized &&
         settings.authorizationStatus != AuthorizationStatus.provisional) {
@@ -47,7 +84,10 @@ class PushNotificationService {
       return;
     }
 
-    // 2. Get FCM token (may fail on iOS if APNS entitlement not configured)
+    // ── 2. Setup local notifications (Android channel + init) ──
+    await _setupLocalNotifications();
+
+    // ── 3. Get FCM token ──
     try {
       _fcmToken = await _messaging.getToken();
       AppConfig.log('[FCM] Token: $_fcmToken');
@@ -57,57 +97,177 @@ class PushNotificationService {
         await _saveTokenLocally(_fcmToken!);
       }
     } catch (e) {
-      AppConfig.log('[FCM] Could not get token (APNS not configured?): $e');
-      // App continues without push notifications
+      AppConfig.log('[FCM] Could not get token: $e');
     }
 
-    // 3. Listen for token refresh
+    // ── 4. Token refresh ──
     _messaging.onTokenRefresh.listen((newToken) async {
-      AppConfig.log('[FCM] Token refreshed: $newToken');
+      AppConfig.log('[FCM] Token refreshed');
       _fcmToken = newToken;
       await _registerTokenWithBackend(newToken);
       await _saveTokenLocally(newToken);
     });
 
-    // 4. Setup foreground message handler
+    // ── 5. Foreground messages → show local notification ──
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // 5. Setup message opened app handler (user tapped notification)
+    // ── 6. User tapped notification → navigate ──
     FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
-    // 6. Check if app was opened from a terminated state via notification
+    // ── 7. App opened from terminated state via notification ──
     final initialMessage = await _messaging.getInitialMessage();
     if (initialMessage != null) {
-      AppConfig.log('[FCM] App opened from terminated state via notification');
+      AppConfig.log('[FCM] App opened from terminated notification');
       _handleMessageOpenedApp(initialMessage);
     }
+
+    // ── 8. iOS foreground presentation ──
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     AppConfig.log('[FCM] Initialized successfully');
   }
 
-  /// Handle foreground messages — show in-app notification
+  // ════════════════════════════════════════════
+  // LOCAL NOTIFICATIONS SETUP
+  // ════════════════════════════════════════════
+  Future<void> _setupLocalNotifications() async {
+    // Android initialization
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // iOS initialization
+    const iosInit = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
+    );
+
+    await flutterLocalNotificationsPlugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // Handle notification tap
+        final payload = response.payload;
+        if (payload != null) {
+          try {
+            final data = jsonDecode(payload) as Map<String, dynamic>;
+            _handleNotificationTap(data);
+          } catch (e) {
+            AppConfig.log('[Notification] Error parsing payload: $e');
+          }
+        }
+      },
+    );
+
+    // Create Android notification channels
+    final androidPlugin = flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(_messageChannel);
+      await androidPlugin.createNotificationChannel(_callChannel);
+    }
+  }
+
+  // ════════════════════════════════════════════
+  // FOREGROUND MESSAGE → show local notification
+  // ════════════════════════════════════════════
   void _handleForegroundMessage(RemoteMessage message) {
     AppConfig.log('[FCM] Foreground message: ${message.notification?.title}');
 
+    // Also show a local notification so it appears in the status bar
+    _showLocalNotification(message);
+
+    // Notify in-app listeners
     final notification = message.notification;
     if (notification == null) return;
 
-    // Store notification data for later use by the UI
     _lastNotification = _NotificationData(
       title: notification.title ?? 'AppChat',
       body: notification.body ?? '',
       data: message.data,
     );
 
-    // Notify listeners (HomeScreen, etc.)
     onForegroundNotification?.call(_lastNotification!);
   }
 
-  /// Handle when user taps a notification (foreground or background)
+  // ════════════════════════════════════════════
+  // SHOW LOCAL NOTIFICATION (works in all states)
+  // ════════════════════════════════════════════
+  static Future<void> _showLocalNotification(RemoteMessage message) async {
+    final notification = message.notification;
+    if (notification == null) return;
+
+    final title = notification.title ?? 'AppChat';
+    final body = notification.body ?? '';
+
+    // Determine channel based on notification type
+    final type = message.data['type'] ?? '';
+    final channelId = type == 'incoming_call'
+        ? 'appchat_calls'
+        : 'appchat_messages';
+    final channelName = type == 'incoming_call' ? 'Cuộc gọi' : 'Tin nhắn';
+    final importance = type == 'incoming_call'
+        ? Importance.max
+        : Importance.high;
+    final priority = type == 'incoming_call' ? Priority.max : Priority.high;
+
+    final androidDetails = AndroidNotificationDetails(
+      channelId,
+      channelName,
+      importance: importance,
+      priority: priority,
+      showWhen: true,
+      icon: '@mipmap/ic_launcher',
+      styleInformation: BigTextStyleInformation(body),
+      category: type == 'incoming_call'
+          ? AndroidNotificationCategory.call
+          : AndroidNotificationCategory.message,
+      groupKey: message.data['conversationId'] ?? 'appchat',
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    final details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // Use a unique ID based on message
+    final notificationId =
+        message.messageId?.hashCode ??
+        DateTime.now().millisecondsSinceEpoch % 100000;
+
+    await flutterLocalNotificationsPlugin.show(
+      notificationId,
+      title,
+      body,
+      details,
+      payload: jsonEncode(message.data),
+    );
+  }
+
+  // ════════════════════════════════════════════
+  // NOTIFICATION TAP HANDLERS
+  // ════════════════════════════════════════════
   void _handleMessageOpenedApp(RemoteMessage message) {
     AppConfig.log('[FCM] Message opened app: ${message.data}');
+    _handleNotificationTap(message.data);
+  }
 
-    final data = message.data;
+  void _handleNotificationTap(Map<String, dynamic> data) {
     final type = data['type'];
 
     switch (type) {
@@ -133,7 +293,9 @@ class PushNotificationService {
     }
   }
 
-  /// Register FCM token with backend
+  // ════════════════════════════════════════════
+  // BACKEND TOKEN REGISTRATION
+  // ════════════════════════════════════════════
   Future<void> _registerTokenWithBackend(String fcmToken) async {
     try {
       final authToken = await AuthService.getToken();
@@ -145,7 +307,10 @@ class PushNotificationService {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $authToken',
         },
-        body: jsonEncode({'token': fcmToken, 'platform': _getPlatform()}),
+        body: jsonEncode({
+          'token': fcmToken,
+          'platform': Platform.isIOS ? 'ios' : 'android',
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -158,28 +323,31 @@ class PushNotificationService {
     }
   }
 
-  /// Save token locally
+  /// Re-register FCM token after login (important for new/returning users)
+  Future<void> reRegisterToken() async {
+    if (_fcmToken != null) {
+      await _registerTokenWithBackend(_fcmToken!);
+    } else {
+      try {
+        _fcmToken = await _messaging.getToken();
+        if (_fcmToken != null) {
+          await _registerTokenWithBackend(_fcmToken!);
+          await _saveTokenLocally(_fcmToken!);
+        }
+      } catch (e) {
+        AppConfig.log('[FCM] Error re-registering token: $e');
+      }
+    }
+  }
+
   Future<void> _saveTokenLocally(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('fcm_token', token);
   }
 
-  /// Get platform string
-  String _getPlatform() {
-    // Check for iOS or Android
-    return WidgetsBinding
-                .instance
-                .platformDispatcher
-                .views
-                .first
-                .platformDispatcher
-                .defaultRouteName ==
-            'ios'
-        ? 'ios'
-        : 'android';
-  }
-
-  // === Callbacks for UI to handle notifications ===
+  // ════════════════════════════════════════════
+  // UI CALLBACKS
+  // ════════════════════════════════════════════
   void Function(_NotificationData notification)? onForegroundNotification;
   void Function(String conversationId)? onNavigateToConversation;
   void Function(String callerId, String callerName, String callType)?

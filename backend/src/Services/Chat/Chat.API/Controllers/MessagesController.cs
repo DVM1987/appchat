@@ -1,4 +1,5 @@
 using Chat.Application.Features.Messages;
+using Chat.API.Services;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -15,13 +16,25 @@ namespace Chat.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly IHubContext<ChatHub> _hubContext;
-        private readonly Chat.Domain.Interfaces.IChatRepository _repository; // Inject Repository
+        private readonly Chat.Domain.Interfaces.IChatRepository _repository;
+        private readonly IPushNotificationService _pushService;
+        private readonly IUserServiceClient _userServiceClient;
+        private readonly ILogger<MessagesController> _logger;
 
-        public MessagesController(IMediator mediator, IHubContext<ChatHub> hubContext, Chat.Domain.Interfaces.IChatRepository repository)
+        public MessagesController(
+            IMediator mediator,
+            IHubContext<ChatHub> hubContext,
+            Chat.Domain.Interfaces.IChatRepository repository,
+            IPushNotificationService pushService,
+            IUserServiceClient userServiceClient,
+            ILogger<MessagesController> logger)
         {
             _mediator = mediator;
             _hubContext = hubContext;
             _repository = repository;
+            _pushService = pushService;
+            _userServiceClient = userServiceClient;
+            _logger = logger;
         }
 
         private string? GetUserId()
@@ -69,6 +82,87 @@ namespace Chat.API.Controllers
                     replyToContent = savedMessage?.ReplyToContent,
                     readBy = savedMessage?.ReadBy ?? new List<string> { userId },
                     reactions = savedMessage?.Reactions ?? new List<Chat.Domain.Entities.MessageReaction>()
+                });
+
+                // === PUSH NOTIFICATION (fire-and-forget) ===
+                // Send FCM push to participants who are NOT the sender
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var otherParticipantIds = conversation.ParticipantIds
+                            .Where(pid => pid != userId)
+                            .ToList();
+
+                        if (!otherParticipantIds.Any()) return;
+
+                        // Fetch ALL participant info (including sender for name)
+                        var allParticipantInfos = await _userServiceClient.GetDeviceTokensAsync(conversation.ParticipantIds);
+
+                        // Get sender name
+                        var senderInfo = allParticipantInfos.FirstOrDefault(p => p.IdentityId == userId);
+                        var senderName = senderInfo?.FullName ?? "Người dùng";
+
+                        // Get device tokens for non-sender participants only
+                        var recipientTokens = allParticipantInfos
+                            .Where(p => p.IdentityId != userId && !string.IsNullOrEmpty(p.DeviceToken))
+                            .ToList();
+
+                        if (!recipientTokens.Any()) return;
+
+                        // Build notification content
+                        var messageContent = savedMessage?.Content ?? command.Content ?? "";
+                        var messageType = savedMessage != null ? (int)savedMessage.Type : command.Type;
+                        
+                        // Format body based on message type
+                        var notificationBody = messageType switch
+                        {
+                            1 => "📷 Đã gửi hình ảnh",
+                            2 => "📎 Đã gửi tệp đính kèm",
+                            3 => "📍 Đã gửi vị trí",
+                            4 => "🎤 Đã gửi tin nhắn thoại",
+                            _ => messageContent.Length > 100 ? messageContent.Substring(0, 100) + "..." : messageContent
+                        };
+
+                        // Title: "SenderName" for 1-1, "GroupName • SenderName" for groups
+                        var notificationTitle = conversation.IsGroup
+                            ? $"{conversation.Name ?? "Nhóm chat"} • {senderName}"
+                            : senderName;
+
+                        // For groups, prepend sender name to body
+                        if (conversation.IsGroup)
+                        {
+                            notificationBody = messageType switch
+                            {
+                                1 => $"{senderName}: 📷 Hình ảnh",
+                                2 => $"{senderName}: 📎 Tệp đính kèm",
+                                3 => $"{senderName}: 📍 Vị trí",
+                                4 => $"{senderName}: 🎤 Tin nhắn thoại",
+                                _ => $"{senderName}: {(messageContent.Length > 80 ? messageContent.Substring(0, 80) + "..." : messageContent)}"
+                            };
+                        }
+
+                        var data = new Dictionary<string, string>
+                        {
+                            { "type", "new_message" },
+                            { "conversationId", conversationId },
+                            { "senderId", userId },
+                            { "senderName", senderName },
+                            { "isGroup", conversation.IsGroup.ToString().ToLower() },
+                            { "conversationName", conversation.Name ?? "" }
+                        };
+
+                        // Send to all recipient devices
+                        var deviceTokens = recipientTokens.Select(d => d.DeviceToken).ToList();
+                        await _pushService.SendToMultipleAsync(deviceTokens, notificationTitle, notificationBody, data);
+
+                        _logger.LogInformation("[FCM] Push sent for message in conversation {ConvId} to {Count} devices",
+                            conversationId, deviceTokens.Count);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[FCM] Error sending push notifications for conversation {ConvId}", conversationId);
+                    }
                 });
             }
 

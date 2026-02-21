@@ -62,5 +62,12 @@ namespace User.Infrastructure.Repositories
                 .Where(u => ids.Contains(u.Id))
                 .ToListAsync();
         }
+
+        public async Task<List<UserProfile>> GetByIdentityIdsAsync(List<Guid> identityIds)
+        {
+            return await _context.UserProfiles
+                .Where(u => identityIds.Contains(u.IdentityId))
+                .ToListAsync();
+        }
     }
 }

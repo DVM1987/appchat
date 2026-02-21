@@ -11,6 +11,7 @@ import '../../../data/services/push_notification_service.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
 import '../call/call_screen.dart';
+import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
 import 'widgets/bottom_nav_bar.dart';
 import 'widgets/chat_tab.dart';
@@ -54,6 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void _setupPushNotifications() {
     final pushService = PushNotificationService();
 
+    // Re-register FCM token after login
+    pushService.reRegisterToken();
+
     // Show in-app banner for foreground notifications
     pushService.onForegroundNotification = (notification) {
       if (!mounted) return;
@@ -78,8 +82,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Navigate to conversation when notification tapped
     pushService.onNavigateToConversation = (conversationId) {
-      // TODO: Navigate to specific chat screen
+      if (!mounted) return;
       AppConfig.log('[Push] Navigate to conversation: $conversationId');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            chatId: conversationId,
+            otherUserName: 'Chat',
+            isGroup: false, // Will be refined when ChatScreen loads
+          ),
+        ),
+      );
     };
 
     // Navigate to friends tab when friend request notification tapped
