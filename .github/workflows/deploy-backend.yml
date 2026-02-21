@@ -36,9 +36,8 @@ jobs:
             
             cd /opt/appchat/backend
             
-            # Rebuild and restart services
-            docker compose down
-            docker compose up -d --build
+            # Rebuild and restart services (DO NOT use 'down' - it destroys database volumes!)
+            docker compose up -d --build --force-recreate
             
             # Cleanup unused images
             docker image prune -f
