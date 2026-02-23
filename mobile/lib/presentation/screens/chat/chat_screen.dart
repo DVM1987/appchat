@@ -555,7 +555,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 !lastSeenStr.contains('-', 10)) {
               lastSeenStr = '${lastSeenStr}Z';
             }
-            _lastSeen = DateTime.tryParse(lastSeenStr)?.toLocal();
+            final parsed = DateTime.tryParse(lastSeenStr)?.toLocal();
+            // Filter out .NET DateTime.MinValue (0001-01-01) — means "never seen"
+            _lastSeen = (parsed != null && parsed.year > 1) ? parsed : null;
             print(
               '[Presence] lastSeen raw: ${presence['lastSeen']}, parsed: $_lastSeen, isOnline: $isOnline',
             );
