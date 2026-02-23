@@ -960,13 +960,34 @@ class ChatService with WidgetsBindingObserver {
   }
 
   Future<void> disconnect() async {
+    print('[ChatService] disconnect: stopping SignalR connections...');
     _heartbeatTimer?.cancel();
-    await _hubConnection?.stop();
-    await _presenceHubConnection?.stop();
-    await _userHubConnection?.stop();
+    try {
+      // Timeout each stop() call to prevent hanging forever
+      await Future.wait([
+        if (_hubConnection != null)
+          _hubConnection!.stop().timeout(
+            const Duration(seconds: 3),
+            onTimeout: () => print('[ChatService] chatHub stop timed out'),
+          ),
+        if (_presenceHubConnection != null)
+          _presenceHubConnection!.stop().timeout(
+            const Duration(seconds: 3),
+            onTimeout: () => print('[ChatService] presenceHub stop timed out'),
+          ),
+        if (_userHubConnection != null)
+          _userHubConnection!.stop().timeout(
+            const Duration(seconds: 3),
+            onTimeout: () => print('[ChatService] userHub stop timed out'),
+          ),
+      ]);
+    } catch (e) {
+      print('[ChatService] disconnect error (ignored): $e');
+    }
     _hubConnection = null;
     _presenceHubConnection = null;
     _userHubConnection = null;
+    print('[ChatService] disconnect: done');
   }
 
   void dispose() {
