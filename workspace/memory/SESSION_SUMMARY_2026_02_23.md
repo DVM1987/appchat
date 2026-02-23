@@ -281,12 +281,69 @@ HTTP Status: 200, Time: 1.154s
 | Banner Dev Mode OTP | ✅ Đã xóa |
 | App cài trên iPhone M | ✅ Build + install thành công |
 
+---
+
+## 15. Call History Tab ✅ (Session tối 21:13 → 21:33)
+
+### Yêu cầu:
+1. Xóa tab "Cập nhật" khỏi bottom nav (không sử dụng)
+2. Tab "Cuộc gọi" hiển thị lịch sử gọi thật (đến/đi/nhỡ) — data thật, không mock
+
+### Files mới tạo:
+
+| File | Mô tả |
+|------|-------|
+| `call_log_model.dart` | Model `CallLog` với enums `CallDirection`, `CallStatus`, `CallType`, serialize/deserialize JSON |
+| `call_log_service.dart` | Singleton service lưu/đọc SharedPreferences, max 100 logs |
+| `call_log_provider.dart` | `ChangeNotifier` quản lý state, load/add/update/clear |
+| `calls_tab.dart` | UI tab: ListView call logs với avatar, direction arrow, status color, duration, tap-to-callback |
+
+### Files đã sửa:
+
+| File | Thay đổi |
+|------|----------|
+| `bottom_nav_bar.dart` | Xóa tab Cập nhật → còn 4 tabs: Chat \| Danh bạ \| Cuộc gọi \| Bạn |
+| `home_screen.dart` | Update tab indices (0→3 thay vì 0→4), ghi incoming call log khi nhận cuộc gọi, dùng prefix `cs` cho call_screen imports |
+| `call_screen.dart` | Thêm `callLogId` param, `_recordOutgoingLog()`, `_updateLogStatus()`, `_updateLogDuration()`. Ghi log tại mọi call events |
+| `main.dart` | Thêm `CallLogProvider` vào `MultiProvider` |
+
+### Call log ghi tại:
+- **Gọi đi**: `_recordOutgoingLog()` khi caller bấm gọi (default=missed, cập nhật nếu kết nối)
+- **Cuộc gọi đến**: `_setupIncomingCallListener()` trong home_screen (default=missed)
+- **Kết nối**: `_updateLogStatus(completed)` khi accept/connected
+- **Từ chối**: `_updateLogStatus(rejected)` khi reject
+- **Kết thúc**: `_updateLogDuration()` tính duration từ `_connectedAt`
+- **Timeout 30s**: Giữ status=missed
+
+### Commit:
+- `587fdcf` — feat: Add call history tab and remove Cập nhật tab
+
+### Lưu ý kỹ thuật:
+- Enum `CallType` trùng tên giữa `call_log_model.dart` và `call_screen.dart` → dùng `hide CallType` hoặc prefix `as cs` để tránh conflict
+- GitHub Push Protection chặn push vì session summary chứa Twilio SID → đã mask thành `AC58f9d11e...d4f`
+
+---
+
+## Trạng Thái Cuối Ngày 23/02/2026 (21:33)
+
+| Tính năng | Trạng thái |
+|-----------|------------|
+| Chat realtime | ✅ SignalR WebSocket |
+| OTP Twilio SMS thật | ✅ End-to-end |
+| Call audio/video | ✅ Agora RTC |
+| Call History tab | ✅ Data thật, persist |
+| Bottom nav 4 tabs | ✅ Chat \| Danh bạ \| Cuộc gọi \| Bạn |
+| Debug code | ✅ Đã dọn sạch |
+| GitHub Secrets | ✅ TWILIO_ACCOUNT_SID đã cập nhật |
+| App trên iPhone M | ✅ Release build, iOS 26.3 |
+
 ## TODO còn lại
 
 | # | Việc | Ưu tiên | Ghi chú |
-|---|------|---------|---------| 
-| 1 | GitHub Secret `TWILIO_ACCOUNT_SID` | 🔴 | Cập nhật đúng SID `AC58f9d11e...` để CI/CD chạy đúng |
-| 2 | Test realtime giữa 2 máy iPhone | 🔴 | Cần user test |
-| 3 | iOS Push Notification | ⏳ | Chờ Apple Developer enrollment |
-| 4 | HTTPS + Domain | 🟡 | Nginx + Let's Encrypt |
-| 5 | JWT token refresh | 🟡 | Hiện user phải login lại khi token hết |
+|---|------|---------|---------|
+| 1 | Test call history giữa 2 iPhone | 🔴 | Cần 2 device test thực tế |
+| 2 | iOS Push Notification | ⏳ | Chờ Apple Developer paid enrollment |
+| 3 | HTTPS + Domain | 🟡 | Nginx reverse proxy + Let's Encrypt |
+| 4 | JWT token refresh | 🟡 | Hiện user phải login lại khi token hết |
+| 5 | Chat service còn print() | 🟢 | Dọn print() trong chat_service.dart |
+
