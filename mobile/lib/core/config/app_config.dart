@@ -14,10 +14,15 @@ import 'dart:io';
 enum Environment { development, staging, production }
 
 class AppConfig {
-  static const String _envString = String.fromEnvironment(
-    'ENV',
-    defaultValue: 'development',
-  );
+  // If app is built in release (dart.vm.product == true), default to production.
+  // Devs can still override with --dart-define=ENV=staging|development.
+  static const String _envRaw = String.fromEnvironment('ENV', defaultValue: '');
+
+  static final String _envString = _envRaw.isNotEmpty
+      ? _envRaw
+      : (const bool.fromEnvironment('dart.vm.product')
+            ? 'production'
+            : 'development');
 
   /// Override base URL via --dart-define=API_BASE_URL=https://...
   static const String _customBaseUrl = String.fromEnvironment(

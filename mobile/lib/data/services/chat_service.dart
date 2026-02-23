@@ -321,6 +321,11 @@ class ChatService with WidgetsBindingObserver {
       throw Exception('User not authenticated');
     }
 
+    print(
+      '[ChatService] createConversation: friendId=$friendId, userId=$userId',
+    );
+    print('[ChatService] POST $_baseUrl/conversations');
+
     final response = await http.post(
       Uri.parse('$_baseUrl/conversations'),
       headers: {
@@ -334,12 +339,15 @@ class ChatService with WidgetsBindingObserver {
       }),
     );
 
+    print('[ChatService] createConversation response: ${response.statusCode}');
+
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
+      print('[ChatService] createConversation got id: ${data['id']}');
       return data['id']; // Adjust based on backend response structure
     } else {
-      AppConfig.log(
-        'Failed to create conversation: ${response.statusCode} - ${response.body}',
+      print(
+        '[ChatService] createConversation FAILED: ${response.statusCode} - ${response.body}',
       );
       throw Exception(
         'Failed to create conversation: ${response.statusCode} - ${response.body}',
@@ -356,17 +364,28 @@ class ChatService with WidgetsBindingObserver {
     final token = await AuthService.getToken();
     if (token == null) throw Exception('User not authenticated');
 
+    final url =
+        '$_baseUrl/conversations/$conversationId/messages?skip=$skip&take=$take';
+    print('[ChatService] getMessages: GET $url');
+
     final response = await http.get(
-      Uri.parse(
-        '$_baseUrl/conversations/$conversationId/messages?skip=$skip&take=$take',
-      ),
+      Uri.parse(url),
       headers: {'Authorization': 'Bearer $token'},
     );
 
+    print(
+      '[ChatService] getMessages response: ${response.statusCode}, body length: ${response.body.length}',
+    );
+
     if (response.statusCode == 200) {
-      return jsonDecode(response.body) as List<dynamic>;
+      final messages = jsonDecode(response.body) as List<dynamic>;
+      print('[ChatService] getMessages: ${messages.length} messages loaded');
+      return messages;
     } else {
-      throw Exception('Failed to load messages');
+      print(
+        '[ChatService] getMessages FAILED: ${response.statusCode} - ${response.body}',
+      );
+      throw Exception('Failed to load messages: ${response.statusCode}');
     }
   }
 

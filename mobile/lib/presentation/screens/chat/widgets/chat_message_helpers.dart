@@ -140,11 +140,17 @@ String formatDayLabel(DateTime date) {
 
 /// Format a relative time ago string.
 String timeAgo(DateTime d) {
-  final diff = DateTime.now().difference(d);
+  final now = DateTime.now();
+  final diff = now.difference(d);
   if (diff.inSeconds < 60) return "vừa xong";
   if (diff.inMinutes < 60) return "${diff.inMinutes} phút trước";
   if (diff.inHours < 24) return "${diff.inHours} giờ trước";
-  return formatTime(d);
+  if (diff.inDays < 7) return "${diff.inDays} ngày trước";
+  // Show date for older timestamps
+  final day = d.day.toString().padLeft(2, '0');
+  final month = d.month.toString().padLeft(2, '0');
+  if (d.year == now.year) return '$day/$month';
+  return '$day/$month/${d.year}';
 }
 
 /// Resolve display name for a user ID given group member profiles.

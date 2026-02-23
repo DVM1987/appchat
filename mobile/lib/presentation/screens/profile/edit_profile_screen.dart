@@ -21,10 +21,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
   bool _hasChanges = false;
   String? _phone;
+  bool _isInitializing = true;
 
   @override
   void initState() {
     super.initState();
+    _nameController.addListener(_onChanged);
+    _bioController.addListener(_onChanged);
     _loadCurrentData();
   }
 
@@ -45,12 +48,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
     } catch (_) {}
-
-    _nameController.addListener(_onChanged);
-    _bioController.addListener(_onChanged);
+    if (mounted) {
+      setState(() => _isInitializing = false);
+    } else {
+      _isInitializing = false;
+    }
   }
 
   void _onChanged() {
+    if (_isInitializing) return;
     if (!_hasChanges) {
       setState(() => _hasChanges = true);
     }

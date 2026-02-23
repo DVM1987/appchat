@@ -75,5 +75,13 @@
 	<!-- Firebase -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
+
+	<!-- Allow HTTP endpoints (dev/prod gateway without HTTPS). 
+	     TODO: tighten by adding NSExceptionDomains for specific hosts when HTTPS is ready. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

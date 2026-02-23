@@ -110,13 +110,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Future<void> _initChat() async {
     try {
-      AppConfig.log(
-        'InitChat for chatId: ${widget.chatId}, isGroup: ${widget.isGroup}',
+      print(
+        '[ChatScreen] InitChat for chatId: ${widget.chatId}, isGroup: ${widget.isGroup}',
       );
       _currentUserId = await AuthService.getUserId();
+      print('[ChatScreen] currentUserId: $_currentUserId');
 
       // Ensure SignalR is initialized/connected first with latest token
       await _chatService.initSignalR();
+      print('[ChatScreen] SignalR initialized');
 
       if (widget.isGroup) {
         _conversationId = widget.chatId;
@@ -131,7 +133,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       } else {
         // Chat 1-1: chatId is FriendId
+        print(
+          '[ChatScreen] Creating/getting conversation for friend: ${widget.chatId}',
+        );
         _conversationId = await _chatService.createConversation(widget.chatId);
+        print('[ChatScreen] Got conversationId: $_conversationId');
       }
 
       if (mounted) {
@@ -141,7 +147,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
 
       // 2. Load History
+      print('[ChatScreen] Loading messages for conversation: $_conversationId');
       final history = await _chatService.getMessages(_conversationId!);
+      print('[ChatScreen] Loaded ${history.length} messages');
       _prepareUnreadDividerFromMessages(history);
 
       // 3. Join Conversation Channel
@@ -169,11 +177,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('[ChatScreen] ERROR in _initChat: $e');
+      print('[ChatScreen] StackTrace: $stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
-        AppConfig.log('Chat connection error: $e');
-        // Retry logic or show error
       }
     }
   }
@@ -539,7 +547,18 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         setState(() {
           _isOtherUserOnline = isOnline;
           if (presence['lastSeen'] != null) {
-            _lastSeen = DateTime.tryParse(presence['lastSeen'].toString());
+            var lastSeenStr = presence['lastSeen'].toString();
+            // Treat as UTC if no timezone info
+            if (lastSeenStr.isNotEmpty &&
+                !lastSeenStr.endsWith('Z') &&
+                !lastSeenStr.contains('+') &&
+                !lastSeenStr.contains('-', 10)) {
+              lastSeenStr = '${lastSeenStr}Z';
+            }
+            _lastSeen = DateTime.tryParse(lastSeenStr)?.toLocal();
+            print(
+              '[Presence] lastSeen raw: ${presence['lastSeen']}, parsed: $_lastSeen, isOnline: $isOnline',
+            );
           }
         });
 
@@ -554,7 +573,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      AppConfig.log('Error fetching presence: $e');
+      print('[Presence] Error fetching presence: $e');
     }
   }
 

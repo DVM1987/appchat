@@ -11,6 +11,7 @@ import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/custom_avatar.dart';
 import 'edit_profile_screen.dart';
+import '../auth/phone_input_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Optional: If null, show current user
@@ -112,7 +113,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     context.read<UserProvider>().clear();
     context.read<ChatProvider>().clear();
     await context.read<AuthProvider>().logout();
-    // Navigation is handled by AuthChecker in main.dart
+    // Điều hướng thẳng về màn đăng nhập, tránh giữ lại stack cũ.
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => PhoneInputScreen()),
+      );
+    }
   }
 
   void _openEditProfile() async {
