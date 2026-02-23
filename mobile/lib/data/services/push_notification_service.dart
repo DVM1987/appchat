@@ -91,22 +91,22 @@ class PushNotificationService {
     try {
       if (Platform.isIOS) {
         // On iOS, we must wait for APNs token before getting FCM token
-        // Keep retries minimal — free Apple accounts never get APNs tokens
+        // Paid Apple Developer account — APNs token should arrive
         String? apnsToken = await _messaging.getAPNSToken();
         int retries = 0;
-        while (apnsToken == null && retries < 2) {
+        while (apnsToken == null && retries < 5) {
           print('[FCM] Waiting for APNs token... attempt ${retries + 1}');
-          await Future.delayed(const Duration(seconds: 1));
+          await Future.delayed(const Duration(seconds: 2));
           apnsToken = await _messaging.getAPNSToken();
           retries++;
         }
         if (apnsToken != null) {
-          print('[FCM] APNs token received');
+          print('[FCM] APNs token received: ${apnsToken.substring(0, 20)}...');
         } else {
           print(
-            '[FCM] APNs not available (free developer account?) - skipping FCM token',
+            '[FCM] APNs token not available after retries - push notifications may not work',
           );
-          return; // Don't try to get FCM token, it will fail
+          // Don't return — still try to get FCM token
         }
       }
 
