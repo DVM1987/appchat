@@ -616,185 +616,185 @@ class ChatService with WidgetsBindingObserver {
     final token = await AuthService.getToken();
     if (token == null) return;
 
-    // 1. Chat Hub
-    if (_hubConnection == null) {
-      _hubConnection = HubConnectionBuilder()
-          .withUrl(
-            _hubUrl,
-            options: HttpConnectionOptions(
-              accessTokenFactory: () async => token,
-            ),
-          )
-          .withAutomaticReconnect()
-          .build();
-      // ... Listeners ...
-      _hubConnection?.on('UserTyping', (arguments) {
-        if (arguments != null && arguments.length >= 3) {
-          final conversationId = arguments[0].toString();
-          final userId = arguments[1].toString();
-          final userName = arguments[2].toString();
+    print('[SignalR] initSignalR: starting parallel connection...');
+    final sw = Stopwatch()..start();
 
-          _userTypingController.add({
-            'conversationId': conversationId,
-            'userId': userId,
-            'userName': userName,
-          });
-        }
-      });
-      _hubConnection?.on('ReceiveMessage', (arguments) {
-        if (arguments != null && arguments.isNotEmpty) {
-          _messageController.add(arguments[0]);
-        }
-      });
-      _hubConnection?.on('MessagesRead', (arguments) {
-        if (arguments != null && arguments.length >= 2) {
-          _messageReadController.add({
-            'conversationId': arguments[0] as String,
-            'userId': arguments[1] as String,
-          });
-        }
-      });
-      _hubConnection?.on('ConversationCreated', (arguments) {
-        AppConfig.log('SignalR: ConversationCreated received');
-        if (arguments != null && arguments.isNotEmpty) {
-          _conversationCreatedController.add(arguments[0]);
-        }
-      });
-      _hubConnection?.on('ConversationUpdated', (arguments) {
-        AppConfig.log('SignalR: ConversationUpdated received');
-        if (arguments != null && arguments.isNotEmpty) {
-          _conversationUpdatedController.add(arguments[0]);
-        }
-      });
-      _hubConnection?.on('ConversationDeleted', (arguments) {
-        AppConfig.log('SignalR: ConversationDeleted received');
-        if (arguments != null && arguments.isNotEmpty) {
-          _conversationDeletedController.add(arguments[0] as String);
-        }
-      });
-      _hubConnection?.on('MessageReacted', (arguments) {
-        AppConfig.log('SignalR: MessageReacted received');
-        if (arguments != null && arguments.isNotEmpty) {
-          _messageReactedController.add(arguments[0]);
-        }
-      });
-      _hubConnection?.on('MessageDeleted', (arguments) {
-        AppConfig.log('SignalR: MessageDeleted received');
-        if (arguments != null && arguments.isNotEmpty) {
-          final raw = arguments[0];
-          if (raw is Map) {
-            _messageDeletedController.add(
-              raw.map((key, value) => MapEntry(key.toString(), value)),
-            );
-          }
-        }
-      });
+    // Build all hub connections if not yet created
+    _buildChatHub(token);
+    _buildPresenceHub(token);
+    _buildUserHub(token);
 
-      // === CALL SIGNALING LISTENERS ===
-      _hubConnection?.on('IncomingCall', (arguments) {
-        AppConfig.log('SignalR: IncomingCall received');
-        if (arguments != null && arguments.isNotEmpty) {
-          final raw = arguments[0];
-          if (raw is Map) {
-            final data = raw.map((k, v) => MapEntry(k.toString(), v));
-            onIncomingCall?.call(data);
-          }
-        }
-      });
-      _hubConnection?.on('CallAccepted', (arguments) {
-        AppConfig.log('SignalR: CallAccepted received');
-        onCallAccepted?.call();
-      });
-      _hubConnection?.on('CallRejected', (arguments) {
-        AppConfig.log('SignalR: CallRejected received');
-        onCallRejected?.call();
-      });
-      _hubConnection?.on('CallEnded', (arguments) {
-        AppConfig.log('SignalR: CallEnded received');
-        onCallEnded?.call();
-      });
+    // Connect all hubs IN PARALLEL
+    await Future.wait([
+      _connectHub(_hubConnection, 'Chat'),
+      _connectHub(_presenceHubConnection, 'Presence'),
+      _connectHub(_userHubConnection, 'User'),
+    ]);
+
+    // Start heartbeat after presence is connected
+    if (_presenceHubConnection?.state == HubConnectionState.Connected) {
+      _startHeartbeat();
     }
 
-    if (_hubConnection?.state == HubConnectionState.Disconnected) {
+    sw.stop();
+    print('[SignalR] All hubs connected in ${sw.elapsedMilliseconds}ms');
+  }
+
+  Future<void> _connectHub(HubConnection? hub, String name) async {
+    if (hub == null) return;
+    if (hub.state == HubConnectionState.Disconnected) {
       try {
-        await _hubConnection?.start();
-        AppConfig.log('Chat SignalR connected');
+        final sw = Stopwatch()..start();
+        await hub.start();
+        sw.stop();
+        print('[SignalR] $name hub connected in ${sw.elapsedMilliseconds}ms');
       } catch (e) {
-        AppConfig.log('Error connecting to Chat Hub: $e');
+        print('[SignalR] Error connecting $name hub: $e');
       }
     }
+  }
 
-    // 2. Presence Hub
-    if (_presenceHubConnection == null) {
-      AppConfig.log('Connecting to Presence Hub at: $_presenceHubUrl');
-      _presenceHubConnection = HubConnectionBuilder()
-          .withUrl(
-            _presenceHubUrl,
-            options: HttpConnectionOptions(
-              accessTokenFactory: () async => token,
-            ),
-          )
-          .withAutomaticReconnect()
-          .build();
-      // ... Listeners ...
-      _presenceHubConnection?.on('UserOnline', (arguments) {
-        if (arguments != null && arguments.isNotEmpty) {
-          _userOnlineController.add(arguments[0] as String);
-        }
-      });
-      _presenceHubConnection?.on('UserOffline', (arguments) {
-        if (arguments != null && arguments.isNotEmpty) {
-          _userOfflineController.add(arguments[0] as String);
-        }
-      });
-    }
+  void _buildChatHub(String token) {
+    if (_hubConnection != null) return;
 
-    if (_presenceHubConnection?.state == HubConnectionState.Disconnected) {
-      try {
-        await _presenceHubConnection?.start();
-        AppConfig.log('Presence SignalR connected');
-        _startHeartbeat();
-      } catch (e) {
-        AppConfig.log('Error connecting to Presence Hub: $e');
+    _hubConnection = HubConnectionBuilder()
+        .withUrl(
+          _hubUrl,
+          options: HttpConnectionOptions(
+            accessTokenFactory: () async => token,
+            skipNegotiation: true,
+            transport: HttpTransportType.WebSockets,
+          ),
+        )
+        .withAutomaticReconnect()
+        .build();
+
+    _hubConnection?.on('UserTyping', (arguments) {
+      if (arguments != null && arguments.length >= 3) {
+        _userTypingController.add({
+          'conversationId': arguments[0].toString(),
+          'userId': arguments[1].toString(),
+          'userName': arguments[2].toString(),
+        });
       }
-    }
-
-    // 3. User Hub
-    if (_userHubConnection == null) {
-      AppConfig.log('Connecting to User Hub at: $_userHubUrl');
-      _userHubConnection = HubConnectionBuilder()
-          .withUrl(
-            _userHubUrl,
-            options: HttpConnectionOptions(
-              accessTokenFactory: () async => token,
-            ),
-          )
-          .withAutomaticReconnect()
-          .build();
-
-      _userHubConnection?.onclose(({Exception? error}) {
-        AppConfig.log('User SignalR closed: $error');
-      });
-
-      _userHubConnection?.on('FriendRequestReceived', (arguments) {
-        AppConfig.log('SignalR: FriendRequestReceived');
-        _friendRequestController.add(null);
-      });
-
-      _userHubConnection?.on('FriendRequestAccepted', (arguments) {
-        AppConfig.log('SignalR: FriendRequestAccepted');
-        _friendRequestController.add(null);
-      });
-    }
-
-    if (_userHubConnection?.state == HubConnectionState.Disconnected) {
-      try {
-        await _userHubConnection?.start();
-        AppConfig.log('User SignalR connected');
-      } catch (e) {
-        AppConfig.log('Error connecting to User Hub ($_userHubUrl): $e');
+    });
+    _hubConnection?.on('ReceiveMessage', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _messageController.add(arguments[0]);
       }
-    }
+    });
+    _hubConnection?.on('MessagesRead', (arguments) {
+      if (arguments != null && arguments.length >= 2) {
+        _messageReadController.add({
+          'conversationId': arguments[0] as String,
+          'userId': arguments[1] as String,
+        });
+      }
+    });
+    _hubConnection?.on('ConversationCreated', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _conversationCreatedController.add(arguments[0]);
+      }
+    });
+    _hubConnection?.on('ConversationUpdated', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _conversationUpdatedController.add(arguments[0]);
+      }
+    });
+    _hubConnection?.on('ConversationDeleted', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _conversationDeletedController.add(arguments[0] as String);
+      }
+    });
+    _hubConnection?.on('MessageReacted', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _messageReactedController.add(arguments[0]);
+      }
+    });
+    _hubConnection?.on('MessageDeleted', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        final raw = arguments[0];
+        if (raw is Map) {
+          _messageDeletedController.add(
+            raw.map((key, value) => MapEntry(key.toString(), value)),
+          );
+        }
+      }
+    });
+
+    // === CALL SIGNALING LISTENERS ===
+    _hubConnection?.on('IncomingCall', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        final raw = arguments[0];
+        if (raw is Map) {
+          final data = raw.map((k, v) => MapEntry(k.toString(), v));
+          onIncomingCall?.call(data);
+        }
+      }
+    });
+    _hubConnection?.on('CallAccepted', (arguments) {
+      onCallAccepted?.call();
+    });
+    _hubConnection?.on('CallRejected', (arguments) {
+      onCallRejected?.call();
+    });
+    _hubConnection?.on('CallEnded', (arguments) {
+      onCallEnded?.call();
+    });
+  }
+
+  void _buildPresenceHub(String token) {
+    if (_presenceHubConnection != null) return;
+
+    _presenceHubConnection = HubConnectionBuilder()
+        .withUrl(
+          _presenceHubUrl,
+          options: HttpConnectionOptions(
+            accessTokenFactory: () async => token,
+            skipNegotiation: true,
+            transport: HttpTransportType.WebSockets,
+          ),
+        )
+        .withAutomaticReconnect()
+        .build();
+
+    _presenceHubConnection?.on('UserOnline', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _userOnlineController.add(arguments[0] as String);
+      }
+    });
+    _presenceHubConnection?.on('UserOffline', (arguments) {
+      if (arguments != null && arguments.isNotEmpty) {
+        _userOfflineController.add(arguments[0] as String);
+      }
+    });
+  }
+
+  void _buildUserHub(String token) {
+    if (_userHubConnection != null) return;
+
+    _userHubConnection = HubConnectionBuilder()
+        .withUrl(
+          _userHubUrl,
+          options: HttpConnectionOptions(
+            accessTokenFactory: () async => token,
+            skipNegotiation: true,
+            transport: HttpTransportType.WebSockets,
+          ),
+        )
+        .withAutomaticReconnect()
+        .build();
+
+    _userHubConnection?.onclose(({Exception? error}) {
+      print('[SignalR] User hub closed: $error');
+    });
+
+    _userHubConnection?.on('FriendRequestReceived', (arguments) {
+      _friendRequestController.add(null);
+    });
+    _userHubConnection?.on('FriendRequestAccepted', (arguments) {
+      _friendRequestController.add(null);
+    });
   }
 
   Future<void> markAsRead(String conversationId) async {
@@ -938,25 +938,21 @@ class ChatService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      AppConfig.log("[ChatService] App Resumed -> Ensuring Connection...");
-      // Re-initialize if disconnected
+      print('[ChatService] App Resumed -> Checking connections...');
+      // Re-initialize if disconnected (e.g. after being killed)
       if (_hubConnection?.state == HubConnectionState.Disconnected ||
           _presenceHubConnection?.state == HubConnectionState.Disconnected) {
         initSignalR();
       } else {
-        // Ensure heartbeat is running if we are already connected
         _startHeartbeat();
       }
     } else if (state == AppLifecycleState.detached) {
       // Only disconnect when the engine is completely detached (app killed)
-      AppConfig.log("[ChatService] App Detached -> Disconnecting...");
-      disconnect();
-    } else if (state == AppLifecycleState.paused) {
-      AppConfig.log(
-        "[ChatService] App Paused -> Disconnecting for accurate presence...",
-      );
+      print('[ChatService] App Detached -> Disconnecting...');
       disconnect();
     }
+    // NOTE: Do NOT disconnect on pause — keep connections alive for
+    // background message delivery and faster resume.
   }
 
   Future<void> disconnect() async {
