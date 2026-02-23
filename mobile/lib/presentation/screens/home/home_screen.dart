@@ -5,18 +5,21 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/call_log_model.dart';
+import '../../../data/services/call_log_service.dart';
 import '../../../data/services/chat_service.dart';
 import '../../../data/services/deep_link_service.dart';
 import '../../../data/services/push_notification_service.dart';
+import '../../providers/call_log_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
-import '../call/call_screen.dart';
+import '../call/call_screen.dart' as cs;
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
 import 'widgets/bottom_nav_bar.dart';
+import 'widgets/calls_tab.dart';
 import 'widgets/chat_tab.dart';
 import 'widgets/friends_tab.dart';
-import 'widgets/placeholder_tab.dart';
 import 'widgets/selection_action_bar.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -99,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Navigate to friends tab when friend request notification tapped
     pushService.onNavigateToFriends = () {
       if (mounted) {
-        setState(() => _currentIndex = 2); // Friends tab
+        setState(() => _currentIndex = 1); // Friends tab (new index)
       }
     };
   }
@@ -132,19 +135,38 @@ class _HomeScreenState extends State<HomeScreen> {
       final callerAvatar = callData['callerAvatar'] ?? callData['CallerAvatar'];
       final callTypeStr =
           callData['callType'] ?? callData['CallType'] ?? 'audio';
-      final callType = callTypeStr == 'video' ? CallType.video : CallType.audio;
+      final callType = callTypeStr == 'video'
+          ? cs.CallType.video
+          : cs.CallType.audio;
+
+      // Record incoming call log (initially as missed, updated if accepted)
+      final callLogId = CallLogService.generateId();
+      final callLog = CallLog(
+        id: callLogId,
+        otherUserId: callerId,
+        otherUserName: callerName,
+        otherUserAvatar: callerAvatar is String && callerAvatar.isNotEmpty
+            ? callerAvatar
+            : null,
+        callType: callTypeStr == 'video' ? CallType.video : CallType.audio,
+        direction: CallDirection.incoming,
+        status: CallStatus.missed, // Default to missed, updated if connected
+        startedAt: DateTime.now(),
+      );
+      context.read<CallLogProvider>().addLog(callLog);
 
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => CallScreen(
+          builder: (_) => cs.CallScreen(
             calleeName: callerName,
             calleeAvatar: callerAvatar is String && callerAvatar.isNotEmpty
                 ? callerAvatar
                 : null,
             callType: callType,
-            callRole: CallRole.callee,
+            callRole: cs.CallRole.callee,
             otherUserId: callerId,
+            callLogId: callLogId,
           ),
         ),
       );
@@ -288,12 +310,10 @@ class _HomeScreenState extends State<HomeScreen> {
           allSelected: allSelected,
         );
       case 1:
-        return const PlaceholderTab(tabName: 'Cập nhật');
-      case 2:
         return const FriendsTab();
+      case 2:
+        return const CallsTab();
       case 3:
-        return const PlaceholderTab(tabName: 'Cuộc gọi');
-      case 4:
         return const ProfileScreen();
       default:
         return ChatTab(

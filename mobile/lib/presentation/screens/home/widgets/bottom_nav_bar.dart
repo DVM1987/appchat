@@ -55,11 +55,6 @@ class BottomNavBar extends StatelessWidget {
                     : const Icon(Icons.chat_bubble),
                 label: 'Chat',
               ),
-              const BottomNavigationBarItem(
-                icon: Icon(Icons.update_outlined),
-                activeIcon: Icon(Icons.update),
-                label: 'Cập nhật',
-              ),
               BottomNavigationBarItem(
                 icon: pendingFriends > 0
                     ? Badge(

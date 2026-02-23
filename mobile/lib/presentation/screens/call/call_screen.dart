@@ -2,12 +2,16 @@ import 'dart:async';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/call_log_model.dart' hide CallType;
 import '../../../data/services/agora_service.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/call_log_service.dart';
 import '../../../data/services/chat_service.dart';
+import '../../providers/call_log_provider.dart';
 import '../../widgets/common/custom_avatar.dart';
 
 enum CallType { audio, video }
@@ -21,7 +25,8 @@ class CallScreen extends StatefulWidget {
   final String? calleeAvatar;
   final CallType callType;
   final CallRole callRole;
-  final String otherUserId; // The other user's identity ID
+  final String otherUserId;
+  final String? callLogId; // Existing log ID (for callee), null for caller
 
   const CallScreen({
     super.key,
@@ -30,6 +35,7 @@ class CallScreen extends StatefulWidget {
     required this.callType,
     this.callRole = CallRole.caller,
     required this.otherUserId,
+    this.callLogId,
   });
 
   @override
@@ -54,6 +60,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   int? _remoteUid;
   bool _agoraJoined = false;
   String? _channelName;
+  String? _callLogId; // Track the call log ID for updating
+  DateTime? _connectedAt; // Track when call connected for duration calc
 
   @override
   void initState() {
@@ -72,7 +80,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     _setupCallListeners();
 
     if (widget.callRole == CallRole.caller) {
-      // Caller: initiate the call
+      // Caller: initiate the call and record outgoing log
+      _recordOutgoingLog();
       _initiateCall();
 
       // Auto-end after 30s if no answer
@@ -81,6 +90,32 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           _endCall(showMessage: true);
         }
       });
+    } else {
+      // Callee: callLogId is already set from home_screen
+      _callLogId = widget.callLogId;
+    }
+  }
+
+  void _recordOutgoingLog() {
+    final id = CallLogService.generateId();
+    _callLogId = id;
+    final log = CallLog(
+      id: id,
+      otherUserId: widget.otherUserId,
+      otherUserName: widget.calleeName,
+      otherUserAvatar: widget.calleeAvatar,
+      callType: widget.callType == CallType.video
+          ? CallType.video as dynamic
+          : CallType.audio as dynamic,
+      direction: CallDirection.outgoing,
+      status: CallStatus.missed, // Default missed, updated if connected
+      startedAt: DateTime.now(),
+    );
+    try {
+      context.read<CallLogProvider>().addLog(log);
+    } catch (_) {
+      // Provider might not be available in widget tree
+      CallLogService().addLog(log);
     }
   }
 
@@ -89,16 +124,19 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     _chatService.onCallAccepted = () {
       if (mounted && _callState == CallState.ringing) {
         setState(() => _callState = CallState.connected);
+        _connectedAt = DateTime.now();
         _pulseController.stop();
         _ringTimeout?.cancel();
         _startDurationTimer();
-        _initAndJoinAgora(); // 🔊 Start real audio/video
+        _updateLogStatus(CallStatus.completed);
+        _initAndJoinAgora();
       }
     };
 
     // Listen for call rejected
     _chatService.onCallRejected = () {
       if (mounted && _callState == CallState.ringing) {
+        _updateLogStatus(CallStatus.rejected);
         _showCallMessage('Cuộc gọi bị từ chối');
         _endCallSilent();
       }
@@ -107,10 +145,38 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     // Listen for call ended by other party
     _chatService.onCallEnded = () {
       if (mounted && _callState != CallState.ended) {
+        _updateLogDuration();
         _showCallMessage('Cuộc gọi đã kết thúc');
         _endCallSilent();
       }
     };
+  }
+
+  void _updateLogStatus(CallStatus status) {
+    if (_callLogId == null) return;
+    try {
+      context.read<CallLogProvider>().updateLog(_callLogId!, status: status);
+    } catch (_) {
+      CallLogService().updateLog(_callLogId!, status: status);
+    }
+  }
+
+  void _updateLogDuration() {
+    if (_callLogId == null || _connectedAt == null) return;
+    final duration = DateTime.now().difference(_connectedAt!).inSeconds;
+    try {
+      context.read<CallLogProvider>().updateLog(
+        _callLogId!,
+        status: CallStatus.completed,
+        durationSeconds: duration,
+      );
+    } catch (_) {
+      CallLogService().updateLog(
+        _callLogId!,
+        status: CallStatus.completed,
+        durationSeconds: duration,
+      );
+    }
   }
 
   /// Initialize Agora engine and join the channel
@@ -223,17 +289,21 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void _acceptCall() async {
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
+    _connectedAt = DateTime.now();
     _pulseController.stop();
     _startDurationTimer();
+    _updateLogStatus(CallStatus.completed);
     await _initAndJoinAgora(); // 🔊 Callee also joins Agora
   }
 
   void _rejectCall() {
+    _updateLogStatus(CallStatus.rejected);
     _chatService.rejectCall(callerId: widget.otherUserId);
     _endCallSilent();
   }
 
   void _endCall({bool showMessage = false}) {
+    _updateLogDuration();
     _chatService.endCall(otherUserId: widget.otherUserId);
     if (showMessage) {
       _showCallMessage('Không có phản hồi');

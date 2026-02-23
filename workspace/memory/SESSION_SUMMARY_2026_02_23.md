@@ -158,3 +158,135 @@
 | 2 | Cài lại app mỗi 7 ngày | ⚠️ | Apple free profile hết hạn |
 | 3 | JWT token refresh | 🟡 | Hiện tại user phải login lại khi token hết hạn |
 | 4 | Test realtime giữa 2 máy | 🔴 | Cần user test |
+
+---
+
+## 11. Cải Thiện Paid Apple Developer Account ✅
+
+- `Info.plist`: Đổi tên app `Mobile` → **AppChat** (hiện trên home screen iPhone)
+- `Runner.entitlements`: Tạo file (tạm trống vì enrollment chưa xong — xcode báo "Personal development teams do not support Push Notifications")
+- `project.pbxproj`: Thêm `CODE_SIGN_ENTITLEMENTS` vào 3 build configs (Debug/Release/Profile)
+- `push_notification_service.dart`: Tăng APNs retry 2×1s → 5×2s
+
+**Commit**: `66eae27`
+
+---
+
+## 12. Thay OTP Dev Mode → Twilio Verify SMS Thật ✅
+
+### Backend
+- `ISmsVerifyService.cs` + `TwilioVerifyService.cs`: Gửi/verify OTP qua Twilio Verify API
+- `SendOtpCommandHandler.cs`: Xóa hardcode `123456`, gọi `ISmsVerifyService.SendOtpAsync()`
+- `VerifyOtpCommandHandler.cs`: Xóa `IOtpRepository`, gọi `ISmsVerifyService.VerifyOtpAsync()`
+- `Program.cs`: Register `ISmsVerifyService → TwilioVerifyService`
+- `Identity.API.csproj`: Thêm NuGet `Twilio 7.3.1`
+- `docker-compose.yml`: Thêm Twilio env vars với `${VAR}` pattern (không hardcode secret)
+- `deploy-backend.yml`: CI/CD tạo `.env` từ GitHub Secrets trước khi `docker compose up`
+
+### Mobile
+- `phone_input_screen.dart`: Xóa banner "Dev Mode: OTP 123456", thêm **auto-fill SĐT** từ SharedPreferences (giống Zalo — gợi ý số cũ, user vẫn xóa được)
+
+### Twilio Credentials (lưu trong GitHub Secrets)
+- Account SID: `AC59f9d...d4f`
+- Verify Service SID: `VAee41de08...ad`
+- Auth Token: GitHub Secret `TWILIO_AUTH_TOKEN`
+
+> ⚠️ **Trial limitation**: Chỉ gửi SMS đến số đã verify. Số `+84961998923` đã verify. Mười Phone chưa verify được (Vietnam restricted).
+
+**Deploy**: Backend đã tự deploy qua CI/CD (workflow run #8 thành công).
+
+**Commits**: `54e9e09`, `ddc4b57`
+
+---
+
+## Trạng Thái Cuối Ngày 23/02/2026
+
+| Tính năng | Trạng thái |
+|-----------|------------|
+| Chat realtime | ✅ SignalR WebSocket, parallel connect |
+| OTP đăng nhập | ✅ Twilio Verify SMS thật |
+| Push notification iOS | ⏳ Chờ Apple Developer paid enrollment (24-48h) |
+| Tên app trên iPhone | ✅ "AppChat" |
+| Auto-fill SĐT đăng nhập | ✅ SharedPreferences |
+| Backend VPS | ✅ 12 containers running |
+
+---
+
+## 13. Fix Twilio OTP Không Hoạt Động ✅ (Session tối 20:29 → 21:08)
+
+### Vấn đề gặp và giải quyết (theo thứ tự):
+
+#### Vấn đề 1: File `.env` không tồn tại trên VPS
+- CI/CD workflow chạy commit `54e9e09` (OTP implementation) không có bước tạo `.env`
+- Commit `ddc4b57` (thêm bước `.env`) chỉ sửa workflow file → không trigger CI/CD (path filter `backend/**`)
+- **Kết quả**: `identity_service` khởi động với biến Twilio rỗng → path `/v2/Services//Verifications` (double slash)
+- **Fix**: SSH vào VPS bằng password, ghi trực tiếp `/opt/appchat/backend/.env`
+
+#### Vấn đề 2: Account SID sai
+- Memory ghi nhớ sai: `AC59f9d11e...` → thực tế là `AC58f9d11e...d4f`
+- **Fix**: User xác nhận từ Twilio Console, cập nhật `.env`
+- **Kiểm chứng**: `curl -u "AC58f9d11e...:<token>"` → trả đúng thông tin Verify Service
+
+#### Vấn đề 3: Auth Token sai lần đầu
+- User cung cấp token lần 1 không đúng → Twilio `20003: Authenticate`
+- **Fix**: User copy đúng Auth Token từ Twilio Console
+
+#### Vấn đề 4: Twilio Verify Geo-Permissions chặn Vietnam
+- Messaging Geo-Permissions đã bật Vietnam ✅ nhưng **Verify Geo-Permissions** là hệ thống riêng biệt
+- Vietnam bị "Disable all traffic" trong Verify Geo-Permissions
+- **Fix**: User vào Twilio Console → Verify → Settings → Geo Permissions → Vietnam → "Enable all traffic"
+
+### Kết quả:
+```
+curl POST /api/v1/auth/send-otp {"message":"OTP sent successfully","expiresIn":300}
+HTTP Status: 200, Time: 1.154s
+```
+
+### Thông tin kỹ thuật:
+- **VPS .env**: `/opt/appchat/backend/.env` (ghi thủ công, không tracked bởi git)
+- **Account SID đúng**: `AC58f9d11e...d4f`
+- **Auth Token**: lưu trong GitHub Secrets `TWILIO_AUTH_TOKEN`
+- **Verify Service SID**: `VAee41de08...ad`
+
+> ⚠️ **Lưu ý quan trọng**: `.env` trên VPS sẽ bị mất nếu VPS restart hoặc deploy lại. CI/CD hiện tại sẽ tạo lại `.env` từ GitHub Secrets — cần đảm bảo `TWILIO_ACCOUNT_SID` trong GitHub Secrets là `AC58f9d11e...d4f` (đã fix).
+
+---
+
+## 14. Xóa Debug Code ✅ (Session tối 21:00 → 21:08)
+
+### File đã thay đổi:
+
+| File | Thay đổi |
+|------|----------|
+| `mobile/lib/presentation/screens/call/call_screen.dart` | Xóa `_debugLogs`, `_addLog()`, debug overlay xanh lá, tất cả `_addLog()` calls |
+| `mobile/lib/data/services/agora_service.dart` | Xóa tất cả `print('[Agora] ...')` statements |
+| `mobile/lib/presentation/screens/auth/otp_verification_screen.dart` | Xóa banner vàng "Dev Mode: Nhập 123456 để xác thực" |
+
+### Commits:
+- `67ba530` — fix: Remove debug overlay and print logs from call screen and agora service
+- `a5abdd7` — fix: Remove dev mode OTP hint banner from verification screen
+
+### Cài app lên iPhone M: ✅
+- Device: `00008110-00167CAE340BA01E`, iOS 26.3
+- Build release mode, Xcode build done ~24s
+
+---
+
+## Trạng Thái Cập Nhật 23/02/2026 (21:08)
+
+| Tính năng | Trạng thái |
+|-----------|------------|
+| OTP Twilio SMS thật | ✅ Hoạt động end-to-end |
+| Debug overlay call screen | ✅ Đã xóa |
+| Banner Dev Mode OTP | ✅ Đã xóa |
+| App cài trên iPhone M | ✅ Build + install thành công |
+
+## TODO còn lại
+
+| # | Việc | Ưu tiên | Ghi chú |
+|---|------|---------|---------| 
+| 1 | GitHub Secret `TWILIO_ACCOUNT_SID` | 🔴 | Cập nhật đúng SID `AC58f9d11e...` để CI/CD chạy đúng |
+| 2 | Test realtime giữa 2 máy iPhone | 🔴 | Cần user test |
+| 3 | iOS Push Notification | ⏳ | Chờ Apple Developer enrollment |
+| 4 | HTTPS + Domain | 🟡 | Nginx + Let's Encrypt |
+| 5 | JWT token refresh | 🟡 | Hiện user phải login lại khi token hết |

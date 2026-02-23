@@ -7,6 +7,7 @@ import 'core/constants/app_colors.dart';
 import 'core/routes/app_routes.dart';
 import 'data/services/push_notification_service.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/call_log_provider.dart';
 import 'presentation/providers/chat_provider.dart';
 import 'presentation/providers/user_provider.dart';
 import 'presentation/screens/auth/phone_input_screen.dart';
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => CallLogProvider()..load()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
