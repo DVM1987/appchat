@@ -114,12 +114,16 @@ class AuthService {
   // Send OTP to phone number
   Future<Map<String, dynamic>> sendOtp({required String phoneNumber}) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/auth/send-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'phoneNumber': phoneNumber}),
-      );
+      print('[Auth] sendOtp: $baseUrl/api/v1/auth/send-otp phone=$phoneNumber');
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/v1/auth/send-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'phoneNumber': phoneNumber}),
+          )
+          .timeout(const Duration(seconds: 15));
 
+      print('[Auth] sendOtp response: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
@@ -127,6 +131,7 @@ class AuthService {
         throw Exception(error['message'] ?? 'Không thể gửi OTP');
       }
     } catch (e) {
+      print('[Auth] sendOtp error: $e');
       if (e is Exception) rethrow;
       throw Exception('Không thể kết nối đến server.');
     }
@@ -147,12 +152,16 @@ class AuthService {
         body['fullName'] = fullName;
       }
 
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/auth/verify-otp'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      print('[Auth] verifyOtp: $baseUrl/api/v1/auth/verify-otp');
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/api/v1/auth/verify-otp'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(body),
+          )
+          .timeout(const Duration(seconds: 15));
 
+      print('[Auth] verifyOtp response: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 401) {
@@ -162,6 +171,7 @@ class AuthService {
         throw Exception('Lỗi server. Vui lòng thử lại.');
       }
     } catch (e) {
+      print('[Auth] verifyOtp error: $e');
       if (e is Exception) rethrow;
       throw Exception('Không thể kết nối đến server.');
     }
