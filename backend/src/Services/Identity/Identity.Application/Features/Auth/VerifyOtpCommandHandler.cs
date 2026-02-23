@@ -7,20 +7,20 @@ namespace Identity.Application.Features.Auth
 {
     public class VerifyOtpCommandHandler : ICommandHandler<VerifyOtpCommand, VerifyOtpResponse>
     {
-        private readonly IOtpRepository _otpRepository;
+        private readonly ISmsVerifyService _smsVerifyService;
         private readonly IUserRepository _userRepository;
         private readonly ITokenService _tokenService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IUserServiceClient _userServiceClient;
 
         public VerifyOtpCommandHandler(
-            IOtpRepository otpRepository,
+            ISmsVerifyService smsVerifyService,
             IUserRepository userRepository,
             ITokenService tokenService,
             IUnitOfWork unitOfWork,
             IUserServiceClient userServiceClient)
         {
-            _otpRepository = otpRepository;
+            _smsVerifyService = smsVerifyService;
             _userRepository = userRepository;
             _tokenService = tokenService;
             _unitOfWork = unitOfWork;
@@ -34,15 +34,12 @@ namespace Identity.Application.Features.Auth
             if (!phone.StartsWith("+"))
                 phone = "+84" + phone.TrimStart('0');
 
-            // 1. Verify OTP
-            var otp = await _otpRepository.GetLatestAsync(phone);
-            if (otp == null || !otp.IsValid(request.OtpCode))
+            // 1. Verify OTP via Twilio Verify
+            var isValid = await _smsVerifyService.VerifyOtpAsync(phone, request.OtpCode);
+            if (!isValid)
             {
                 throw new Exception("Invalid or expired OTP");
             }
-
-            otp.MarkAsUsed();
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // 2. Find or create user
             var user = await _userRepository.GetByPhoneAsync(phone);

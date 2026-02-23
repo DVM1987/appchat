@@ -120,6 +120,9 @@ services:
       - JwtSettings__Audience=ChatAppUsers
       - JwtSettings__ExpiryMinutes=60
       - UserServiceUrl=http://user_service:8080
+      - Twilio__AccountSid=${TWILIO_ACCOUNT_SID}
+      - Twilio__AuthToken=${TWILIO_AUTH_TOKEN}
+      - Twilio__VerifyServiceSid=${TWILIO_VERIFY_SERVICE_SID}
     networks:
       - chat_network
     depends_on:

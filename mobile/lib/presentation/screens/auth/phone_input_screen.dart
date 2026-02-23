@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
@@ -19,6 +20,25 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
   String _countryCode = '+84';
   String _countryName = 'Viet Nam';
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedPhone();
+  }
+
+  Future<void> _loadSavedPhone() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString('last_phone_number');
+    if (saved != null && saved.isNotEmpty && mounted) {
+      setState(() => _phoneController.text = saved);
+    }
+  }
+
+  Future<void> _savePhone(String phone) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_phone_number', phone);
+  }
 
   @override
   void dispose() {
@@ -45,6 +65,9 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       await authProvider.sendOtp(phoneNumber: _fullPhoneNumber);
+
+      // Save phone for auto-fill next time
+      await _savePhone(_phoneController.text.trim());
 
       if (!mounted) return;
 
@@ -236,26 +259,14 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
               ),
             ),
 
-          // Dev mode hint
           const Spacer(),
-          Container(
-            margin: const EdgeInsets.all(24),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF3CD),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, size: 18, color: Color(0xFF856404)),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Dev Mode: Mã OTP luôn là 123456',
-                    style: TextStyle(color: Color(0xFF856404), fontSize: 13),
-                  ),
-                ),
-              ],
+          // Info: OTP will be sent via SMS
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Chúng tôi sẽ gửi mã xác nhận qua SMS đến số điện thoại của bạn.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black38, fontSize: 13),
             ),
           ),
         ],
