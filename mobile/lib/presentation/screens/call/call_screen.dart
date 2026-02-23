@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/services/agora_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -53,16 +54,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   int? _remoteUid;
   bool _agoraJoined = false;
   String? _channelName;
-  final List<String> _debugLogs = []; // Visible debug logs on screen
-
-  void _addLog(String msg) {
-    if (mounted) {
-      setState(() {
-        _debugLogs.add('[${DateTime.now().toString().substring(11, 19)}] $msg');
-        if (_debugLogs.length > 15) _debugLogs.removeAt(0);
-      });
-    }
-  }
 
   @override
   void initState() {
@@ -96,7 +87,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void _setupCallListeners() {
     // Listen for call accepted → start Agora
     _chatService.onCallAccepted = () {
-      _addLog('📲 CallAccepted received');
       if (mounted && _callState == CallState.ringing) {
         setState(() => _callState = CallState.connected);
         _pulseController.stop();
@@ -108,7 +98,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
     // Listen for call rejected
     _chatService.onCallRejected = () {
-      _addLog('📲 CallRejected received');
       if (mounted && _callState == CallState.ringing) {
         _showCallMessage('Cuộc gọi bị từ chối');
         _endCallSilent();
@@ -117,7 +106,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
     // Listen for call ended by other party
     _chatService.onCallEnded = () {
-      _addLog('📲 CallEnded received');
       if (mounted && _callState != CallState.ended) {
         _showCallMessage('Cuộc gọi đã kết thúc');
         _endCallSilent();
@@ -129,40 +117,33 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   Future<void> _initAndJoinAgora() async {
     try {
       final isVideo = widget.callType == CallType.video;
-      _addLog('Starting Agora init (video=$isVideo)');
 
       // Request permissions
       final granted = await _agoraService.requestPermissions(isVideo: isVideo);
-      _addLog('Permissions granted: $granted');
       if (!granted) {
-        _addLog('❌ PERMISSIONS DENIED');
         _showCallMessage('Cần cấp quyền micro${isVideo ? ' và camera' : ''}');
         return;
       }
 
       // Setup Agora callbacks BEFORE initializing
       _agoraService.onUserJoined = (int remoteUid) {
-        _addLog('🎉 Remote user joined: $remoteUid');
         if (mounted) {
           setState(() => _remoteUid = remoteUid);
         }
       };
 
       _agoraService.onUserOffline = (int remoteUid) {
-        _addLog('❌ Remote user left: $remoteUid');
         if (mounted) {
           setState(() => _remoteUid = null);
         }
       };
 
       _agoraService.onError = (err, msg) {
-        _addLog('❌ Agora Error: $err - $msg');
+        AppConfig.log('[Call] Agora Error: $err - $msg');
       };
 
       // Initialize engine
-      _addLog('Initializing engine...');
       await _agoraService.initialize(isVideo: isVideo);
-      _addLog('✅ Engine initialized');
 
       // Generate channel name
       final myUserId = await AuthService.getUserId() ?? '';
@@ -171,10 +152,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         widget.otherUserId,
       );
       final uid = AgoraService.generateUid(myUserId);
-
-      _addLog('myId: ${myUserId.substring(0, 8)}...');
-      _addLog('channel: $channelName');
-      _addLog('uid: $uid');
 
       // Store channel name
       if (mounted) {
@@ -187,16 +164,10 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         final backendToken = await _agoraService.getToken(channelName);
         if (backendToken != null && backendToken.isNotEmpty) {
           agoraToken = backendToken;
-          _addLog('Got backend token: ${agoraToken.substring(0, 10)}...');
-        } else {
-          _addLog('No backend token, using testing mode');
         }
-      } catch (e) {
-        _addLog('Token fetch error: $e');
-      }
+      } catch (_) {}
 
       // Join channel
-      _addLog('Joining channel...');
       await _agoraService.joinChannel(
         channelName: channelName,
         uid: uid,
@@ -206,16 +177,12 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       // Start local video preview if needed
       if (isVideo) {
         await _agoraService.engine?.startPreview();
-        _addLog('Video preview started');
       }
 
       if (mounted) {
         setState(() => _agoraJoined = true);
       }
-      _addLog('✅ Agora joined!');
-    } catch (e, stack) {
-      _addLog('❌ ERROR: $e');
-      _addLog('Stack: ${stack.toString().split('\n').first}');
+    } catch (e) {
       _showCallMessage('Lỗi kết nối: $e');
     }
   }
@@ -254,7 +221,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   }
 
   void _acceptCall() async {
-    _addLog('Accepting call...');
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _pulseController.stop();
@@ -410,33 +376,6 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Debug overlay at top
-                if (_debugLogs.isNotEmpty)
-                  Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _debugLogs
-                          .map(
-                            (log) => Text(
-                              log,
-                              style: const TextStyle(
-                                color: Colors.greenAccent,
-                                fontSize: 9,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-
                 // Avatar with pulse (hide when video is connected)
                 if (!(isVideo && isConnected && _remoteUid != null))
                   AnimatedBuilder(

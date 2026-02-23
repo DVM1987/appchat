@@ -63,7 +63,6 @@ class AgoraService {
         await _engine!.enableVideo();
         await _engine!.startPreview();
       }
-      print('[Agora] Already initialized, reusing engine');
       return;
     }
 
@@ -76,7 +75,6 @@ class AgoraService {
       _isInitialized = false;
     }
 
-    print('[Agora] Creating engine with appId: ${appId.substring(0, 8)}...');
     _engine = createAgoraRtcEngine();
     await _engine!.initialize(
       const RtcEngineContext(
@@ -89,13 +87,9 @@ class AgoraService {
     _engine!.registerEventHandler(
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          print(
-            '[Agora] ✅ Joined channel: ${connection.channelId} in ${elapsed}ms',
-          );
           onJoinChannelSuccess?.call(connection, elapsed);
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          print('[Agora] ✅ Remote user joined: $remoteUid');
           onUserJoined?.call(remoteUid);
         },
         onUserOffline:
@@ -104,13 +98,9 @@ class AgoraService {
               int remoteUid,
               UserOfflineReasonType reason,
             ) {
-              print(
-                '[Agora] ❌ Remote user offline: $remoteUid reason: $reason',
-              );
               onUserOffline?.call(remoteUid);
             },
         onError: (ErrorCodeType err, String msg) {
-          print('[Agora] ❌ Error: $err - $msg');
           onError?.call(err, msg);
         },
         onConnectionStateChanged:
@@ -118,24 +108,19 @@ class AgoraService {
               RtcConnection connection,
               ConnectionStateType state,
               ConnectionChangedReasonType reason,
-            ) {
-              print('[Agora] 🔄 Connection state: $state reason: $reason');
-            },
+            ) {},
       ),
     );
 
     // Always enable audio
     await _engine!.enableAudio();
-    print('[Agora] Audio enabled');
 
     if (isVideo) {
       await _engine!.enableVideo();
       await _engine!.startPreview();
-      print('[Agora] Video enabled + preview started');
     }
 
     _isInitialized = true;
-    print('[Agora] ✅ Engine initialized (video=$isVideo)');
   }
 
   /// Get Agora token from backend
@@ -170,18 +155,8 @@ class AgoraService {
     required int uid,
     String? token,
   }) async {
-    if (_engine == null) {
-      print('[Agora] ❌ Engine is null, cannot join');
-      return;
-    }
-
-    // Testing Mode (APP ID only) - no token needed
-    final agoraToken = token ?? '';
-
-    print('[Agora] 📞 Joining channel: $channelName with uid: $uid');
-
     await _engine!.joinChannel(
-      token: agoraToken,
+      token: token ?? '',
       channelId: channelName,
       uid: uid,
       options: const ChannelMediaOptions(
@@ -192,8 +167,6 @@ class AgoraService {
         clientRoleType: ClientRoleType.clientRoleBroadcaster,
       ),
     );
-
-    print('[Agora] ✅ Join channel request sent for: $channelName');
   }
 
   /// Leave the current channel
@@ -232,14 +205,10 @@ class AgoraService {
     if (_engine != null) {
       try {
         await _engine!.leaveChannel();
-      } catch (e) {
-        print('[Agora] Warning: leaveChannel error: $e');
-      }
+      } catch (_) {}
       try {
         await _engine!.release();
-      } catch (e) {
-        print('[Agora] Warning: release error: $e');
-      }
+      } catch (_) {}
       _engine = null;
       _isInitialized = false;
       // Clear callbacks to avoid stale references
@@ -247,7 +216,6 @@ class AgoraService {
       onUserOffline = null;
       onJoinChannelSuccess = null;
       onError = null;
-      print('[Agora] Engine disposed');
     }
   }
 
