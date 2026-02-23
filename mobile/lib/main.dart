@@ -21,8 +21,9 @@ void main() async {
   // Register background message handler
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-  // Initialize push notifications
-  await PushNotificationService().initialize();
+  // Initialize push notifications (do NOT await here, it blocks the UI thread)
+  // On iOS free developer accounts, waiting for APNs can take 20s and cause Watchdog to kill the app.
+  PushNotificationService().initialize();
 
   runApp(const MyApp());
 }
