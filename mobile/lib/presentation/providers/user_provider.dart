@@ -46,13 +46,16 @@ class UserProvider extends ChangeNotifier {
   }
 
   Future<void> loadData() async {
-    _friends = [];
-    _pendingRequests = [];
-    _isLoading = true;
+    // Only show loading if we have no existing data (first load)
+    final isFirstLoad = _friends.isEmpty && _pendingRequests.isEmpty;
+    if (isFirstLoad) {
+      _isLoading = true;
+    }
     _error = null;
     notifyListeners();
 
     try {
+      print('[UserProvider] loadData: fetching friends, pending, profile...');
       final results = await Future.wait([
         _userService.getFriends(),
         _userService.getPendingRequests(),
@@ -62,10 +65,14 @@ class UserProvider extends ChangeNotifier {
       _friends = results[0] as List<dynamic>;
       _pendingRequests = results[1] as List<dynamic>;
       _myProfile = results[2] as Map<String, dynamic>?;
+      print(
+        '[UserProvider] loadData: ${_friends.length} friends, ${_pendingRequests.length} pending',
+      );
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
+      print('[UserProvider] loadData error: $e');
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
