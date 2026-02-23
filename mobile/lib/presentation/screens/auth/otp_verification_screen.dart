@@ -412,28 +412,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ],
             ),
 
-            // Dev mode hint
             const Spacer(),
-            Container(
-              margin: const EdgeInsets.only(bottom: 32),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF3CD),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: Color(0xFF856404)),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Dev Mode: Nhập 123456 để xác thực',
-                      style: TextStyle(color: Color(0xFF856404), fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
