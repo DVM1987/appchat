@@ -13,6 +13,7 @@ import '../../../data/services/push_notification_service.dart';
 import '../../providers/call_log_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../widgets/update_dialog.dart';
 import '../call/call_screen.dart' as cs;
 import '../chat/chat_screen.dart';
 import '../profile/profile_screen.dart';
@@ -52,6 +53,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Setup push notification handlers
       _setupPushNotifications();
+
+      // Check for app updates (soft/force)
+      UpdateDialog.checkAndShow(context);
     });
   }
 
