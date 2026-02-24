@@ -76,5 +76,24 @@ namespace Identity.API.Controllers
                 return StatusCode(500, new { message = "Internal Server Error" });
             }
         }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
+        {
+            try
+            {
+                var response = await _mediator.Send(command);
+                return Ok(response);
+            }
+            catch (Exception ex) when (ex.Message.Contains("Invalid") || ex.Message.Contains("expired"))
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RefreshToken] Error: {ex.Message}");
+                return StatusCode(500, new { message = "Internal Server Error" });
+            }
+        }
     }
 }

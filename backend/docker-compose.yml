@@ -148,6 +148,8 @@ services:
       - UserServiceUrl=http://user_service:8080
       - Firebase__CredentialPath=/app/firebase-admin-sdk.json
       - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-admin-sdk.json
+      - Agora__AppId=37cc9df20f2d4cd9860e29b6b4b9517b
+      - Agora__AppCertificate= # PASTE YOUR AGORA APP CERTIFICATE HERE
     ports:
       - "5003:8080"
     volumes:
@@ -205,6 +207,27 @@ services:
     networks:
       - chat_network
 
+  # 12. Nginx Reverse Proxy (HTTPS)
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - certbot_data:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    depends_on:
+      - gateway
+      - chat_service
+      - user_service
+      - presence_service
+    networks:
+      - chat_network
+    restart: unless-stopped
+
 networks:
   chat_network:
     driver: bridge
@@ -217,3 +240,5 @@ volumes:
   seq_data:
   user_uploads:
   chat_uploads:
+  certbot_data:
+  certbot_www:

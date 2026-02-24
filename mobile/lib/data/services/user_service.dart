@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/config/app_config.dart';
 import 'auth_service.dart';
 
 class UserService {
@@ -141,7 +142,7 @@ class UserService {
 
       if (currentUserId == null) throw Exception('User not logged in');
 
-      print(
+      AppConfig.log(
         '[UserService] getPendingRequests: $baseUrl/api/v1/friends/pending?userId=$currentUserId',
       );
       final response = await http
@@ -154,7 +155,7 @@ class UserService {
           )
           .timeout(const Duration(seconds: 10));
 
-      print('[UserService] getPendingRequests: ${response.statusCode}');
+      AppConfig.log('[UserService] getPendingRequests: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -163,7 +164,7 @@ class UserService {
         );
       }
     } catch (e) {
-      print('[UserService] Error getting pending requests: $e');
+      AppConfig.log('[UserService] Error getting pending requests: $e');
       return [];
     }
   }
@@ -232,7 +233,7 @@ class UserService {
 
       if (currentUserId == null) throw Exception('User not logged in');
 
-      print(
+      AppConfig.log(
         '[UserService] getFriends: $baseUrl/api/v1/friends?userId=$currentUserId',
       );
       final response = await http
@@ -245,7 +246,7 @@ class UserService {
           )
           .timeout(const Duration(seconds: 10));
 
-      print(
+      AppConfig.log(
         '[UserService] getFriends: ${response.statusCode}, ${response.body.length} bytes',
       );
       if (response.statusCode == 200) {
@@ -254,7 +255,7 @@ class UserService {
         throw Exception('Failed to load friends: ${response.statusCode}');
       }
     } catch (e) {
-      print('[UserService] Error getting friends: $e');
+      AppConfig.log('[UserService] Error getting friends: $e');
       return [];
     }
   }
@@ -265,7 +266,7 @@ class UserService {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token');
 
-      print(
+      AppConfig.log(
         '[UserService] getUserProfile: $baseUrl/api/v1/users/identity/$identityId',
       );
       final response = await http
@@ -278,14 +279,14 @@ class UserService {
           )
           .timeout(const Duration(seconds: 10));
 
-      print('[UserService] getUserProfile: ${response.statusCode}');
+      AppConfig.log('[UserService] getUserProfile: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
         return null;
       }
     } catch (e) {
-      print('[UserService] Error getting user profile: $e');
+      AppConfig.log('[UserService] Error getting user profile: $e');
       return null;
     }
   }

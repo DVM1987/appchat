@@ -99,6 +99,11 @@ class AuthService {
     return prefs.getString('auth_token');
   }
 
+  static Future<String?> getRefreshToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('refresh_token');
+  }
+
   static Future<String?> getUserId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('user_id');
@@ -109,12 +114,60 @@ class AuthService {
     return prefs.getString('user_name');
   }
 
+  /// Save both tokens to SharedPreferences
+  static Future<void> saveTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_token', accessToken);
+    await prefs.setString('refresh_token', refreshToken);
+  }
+
+  /// Refresh the access token using the stored refresh token.
+  /// Returns the new access token if successful, null otherwise.
+  static Future<String?> refreshAccessToken() async {
+    try {
+      final currentToken = await getToken();
+      final currentRefreshToken = await getRefreshToken();
+      if (currentToken == null || currentRefreshToken == null) return null;
+
+      final response = await http
+          .post(
+            Uri.parse('${AuthService.baseUrl}/api/v1/auth/refresh'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'accessToken': currentToken,
+              'refreshToken': currentRefreshToken,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final newToken = data['token'] as String;
+        final newRefresh = data['refreshToken'] as String;
+        await saveTokens(accessToken: newToken, refreshToken: newRefresh);
+        AppConfig.log('[Auth] Token refreshed successfully');
+        return newToken;
+      } else {
+        AppConfig.log('[Auth] Token refresh failed: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      AppConfig.log('[Auth] Token refresh error: $e');
+      return null;
+    }
+  }
+
   // ─── Phone OTP Auth ──────────────────────────────────────
 
   // Send OTP to phone number
   Future<Map<String, dynamic>> sendOtp({required String phoneNumber}) async {
     try {
-      print('[Auth] sendOtp: $baseUrl/api/v1/auth/send-otp phone=$phoneNumber');
+      AppConfig.log(
+        '[Auth] sendOtp: $baseUrl/api/v1/auth/send-otp phone=$phoneNumber',
+      );
       final response = await http
           .post(
             Uri.parse('$baseUrl/api/v1/auth/send-otp'),
@@ -123,7 +176,7 @@ class AuthService {
           )
           .timeout(const Duration(seconds: 15));
 
-      print('[Auth] sendOtp response: ${response.statusCode}');
+      AppConfig.log('[Auth] sendOtp response: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else {
@@ -131,7 +184,7 @@ class AuthService {
         throw Exception(error['message'] ?? 'Không thể gửi OTP');
       }
     } catch (e) {
-      print('[Auth] sendOtp error: $e');
+      AppConfig.log('[Auth] sendOtp error: $e');
       if (e is Exception) rethrow;
       throw Exception('Không thể kết nối đến server.');
     }
@@ -152,7 +205,7 @@ class AuthService {
         body['fullName'] = fullName;
       }
 
-      print('[Auth] verifyOtp: $baseUrl/api/v1/auth/verify-otp');
+      AppConfig.log('[Auth] verifyOtp: $baseUrl/api/v1/auth/verify-otp');
       final response = await http
           .post(
             Uri.parse('$baseUrl/api/v1/auth/verify-otp'),
@@ -161,7 +214,7 @@ class AuthService {
           )
           .timeout(const Duration(seconds: 15));
 
-      print('[Auth] verifyOtp response: ${response.statusCode}');
+      AppConfig.log('[Auth] verifyOtp response: ${response.statusCode}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 401) {
@@ -171,7 +224,7 @@ class AuthService {
         throw Exception('Lỗi server. Vui lòng thử lại.');
       }
     } catch (e) {
-      print('[Auth] verifyOtp error: $e');
+      AppConfig.log('[Auth] verifyOtp error: $e');
       if (e is Exception) rethrow;
       throw Exception('Không thể kết nối đến server.');
     }

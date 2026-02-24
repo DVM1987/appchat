@@ -38,5 +38,34 @@ namespace Identity.Infrastructure.Repositories
         {
             return !await _context.Users.AnyAsync(u => u.PhoneNumber == phoneNumber);
         }
+
+        public async Task<User?> GetByIdAsync(Guid userId)
+        {
+            return await _context.Users.FindAsync(userId);
+        }
+
+        // Refresh Token
+        public async Task SaveRefreshTokenAsync(RefreshToken refreshToken)
+        {
+            await _context.RefreshTokens.AddAsync(refreshToken);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<RefreshToken?> GetRefreshTokenAsync(string token)
+        {
+            return await _context.RefreshTokens
+                .FirstOrDefaultAsync(r => r.Token == token && !r.IsRevoked);
+        }
+
+        public async Task RevokeRefreshTokenAsync(string token)
+        {
+            var refreshToken = await _context.RefreshTokens
+                .FirstOrDefaultAsync(r => r.Token == token);
+            if (refreshToken != null)
+            {
+                refreshToken.Revoke();
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }

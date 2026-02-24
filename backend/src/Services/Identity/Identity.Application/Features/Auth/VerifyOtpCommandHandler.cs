@@ -66,7 +66,12 @@ namespace Identity.Application.Features.Auth
             // 3. Generate JWT token
             var token = _tokenService.GenerateToken(user!.Id, user.FullName, user.Email ?? phone);
 
-            return new VerifyOtpResponse(token, 3600, isNewUser);
+            // 4. Generate refresh token
+            var refreshTokenValue = _tokenService.GenerateRefreshToken();
+            var refreshToken = new RefreshToken(user.Id, refreshTokenValue);
+            await _userRepository.SaveRefreshTokenAsync(refreshToken);
+
+            return new VerifyOtpResponse(token, refreshTokenValue, 3600, isNewUser);
         }
     }
 }

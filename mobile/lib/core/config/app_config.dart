@@ -30,8 +30,12 @@ class AppConfig {
     defaultValue: '',
   );
 
-  /// VPS Production IP
+  /// VPS Production IP (used for staging with direct ports)
   static const String _vpsHost = '139.180.217.83';
+
+  /// Production base URL — goes through Nginx reverse proxy on port 80
+  /// When you have a domain + SSL: change to 'https://yourdomain.com'
+  static const String _prodBaseUrl = 'http://$_vpsHost';
 
   static Environment get environment {
     switch (_envString.toLowerCase()) {
@@ -57,7 +61,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5001';
       case Environment.production:
-        return 'http://$_vpsHost:5001';
+        return _prodBaseUrl; // Through Nginx
     }
   }
 
@@ -72,7 +76,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5003/api/v1';
       case Environment.production:
-        return 'http://$_vpsHost:5003/api/v1';
+        return '$_prodBaseUrl/api/v1'; // Through Nginx
     }
   }
 
@@ -87,7 +91,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5003/chatHub';
       case Environment.production:
-        return 'http://$_vpsHost:5003/chatHub';
+        return '$_prodBaseUrl/chatHub'; // Through Nginx
     }
   }
 
@@ -103,7 +107,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5005/presenceHub';
       case Environment.production:
-        return 'http://$_vpsHost:5005/presenceHub';
+        return '$_prodBaseUrl/presenceHub'; // Through Nginx
     }
   }
 
@@ -119,7 +123,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5004/userHub';
       case Environment.production:
-        return 'http://$_vpsHost:5004/userHub';
+        return '$_prodBaseUrl/userHub'; // Through Nginx
     }
   }
 
@@ -135,7 +139,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5005';
       case Environment.production:
-        return 'http://$_vpsHost:5005';
+        return _prodBaseUrl; // Through Nginx
     }
   }
 
@@ -151,7 +155,7 @@ class AppConfig {
       case Environment.staging:
         return 'http://$_vpsHost:5004/api/v1';
       case Environment.production:
-        return 'http://$_vpsHost:5004/api/v1';
+        return '$_prodBaseUrl/api/v1'; // Through Nginx
     }
   }
 

@@ -55,8 +55,31 @@ class AuthProvider with ChangeNotifier {
           }
         }
       } else {
-        // Token expired, clear it
-        await logout();
+        // Token expired — try to refresh
+        final newToken = await AuthService.refreshAccessToken();
+        if (newToken != null) {
+          _token = newToken;
+          _isAuthenticated = true;
+          // Update expiry
+          final newExpiry =
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
+          await prefs.setInt('token_expires_at', newExpiry);
+          // Decode refreshed token for userId/userName
+          try {
+            Map<String, dynamic> decoded = JwtDecoder.decode(newToken);
+            if (decoded.containsKey('sub')) {
+              _userId = decoded['sub'];
+              await prefs.setString('user_id', _userId!);
+            }
+            if (decoded.containsKey('name')) {
+              _userName = decoded['name'];
+              await prefs.setString('user_name', _userName!);
+            }
+          } catch (_) {}
+        } else {
+          // Refresh failed — force logout
+          await logout();
+        }
       }
     }
 
@@ -81,9 +104,13 @@ class AuthProvider with ChangeNotifier {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final expiresAt = now + (_tokenExpiresIn ?? 3600); // Default 1 hour
 
-      // Save to SharedPreferences
+      // Save tokens (access + refresh) to SharedPreferences
+      final refreshToken = response['refreshToken'] as String? ?? '';
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', _token!);
+      await AuthService.saveTokens(
+        accessToken: _token!,
+        refreshToken: refreshToken,
+      );
       await prefs.setString('user_email', _userEmail!);
       await prefs.setInt('token_expires_at', expiresAt);
 
@@ -145,6 +172,7 @@ class AuthProvider with ChangeNotifier {
     // Clear SharedPreferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
+    await prefs.remove('refresh_token');
     await prefs.remove('user_id');
     await prefs.remove('user_name');
     await prefs.remove('user_email');
@@ -192,9 +220,13 @@ class AuthProvider with ChangeNotifier {
       final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       final expiresAt = now + (_tokenExpiresIn ?? 3600);
 
-      // Save to SharedPreferences
+      // Save tokens (access + refresh)
+      final refreshToken = response['refreshToken'] as String? ?? '';
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', _token!);
+      await AuthService.saveTokens(
+        accessToken: _token!,
+        refreshToken: refreshToken,
+      );
       await prefs.setInt('token_expires_at', expiresAt);
 
       // Decode token

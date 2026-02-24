@@ -321,10 +321,10 @@ class ChatService with WidgetsBindingObserver {
       throw Exception('User not authenticated');
     }
 
-    print(
+    AppConfig.log(
       '[ChatService] createConversation: friendId=$friendId, userId=$userId',
     );
-    print('[ChatService] POST $_baseUrl/conversations');
+    AppConfig.log('[ChatService] POST $_baseUrl/conversations');
 
     final response = await http.post(
       Uri.parse('$_baseUrl/conversations'),
@@ -339,14 +339,16 @@ class ChatService with WidgetsBindingObserver {
       }),
     );
 
-    print('[ChatService] createConversation response: ${response.statusCode}');
+    AppConfig.log(
+      '[ChatService] createConversation response: ${response.statusCode}',
+    );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
-      print('[ChatService] createConversation got id: ${data['id']}');
+      AppConfig.log('[ChatService] createConversation got id: ${data['id']}');
       return data['id']; // Adjust based on backend response structure
     } else {
-      print(
+      AppConfig.log(
         '[ChatService] createConversation FAILED: ${response.statusCode} - ${response.body}',
       );
       throw Exception(
@@ -366,23 +368,25 @@ class ChatService with WidgetsBindingObserver {
 
     final url =
         '$_baseUrl/conversations/$conversationId/messages?skip=$skip&take=$take';
-    print('[ChatService] getMessages: GET $url');
+    AppConfig.log('[ChatService] getMessages: GET $url');
 
     final response = await http.get(
       Uri.parse(url),
       headers: {'Authorization': 'Bearer $token'},
     );
 
-    print(
+    AppConfig.log(
       '[ChatService] getMessages response: ${response.statusCode}, body length: ${response.body.length}',
     );
 
     if (response.statusCode == 200) {
       final messages = jsonDecode(response.body) as List<dynamic>;
-      print('[ChatService] getMessages: ${messages.length} messages loaded');
+      AppConfig.log(
+        '[ChatService] getMessages: ${messages.length} messages loaded',
+      );
       return messages;
     } else {
-      print(
+      AppConfig.log(
         '[ChatService] getMessages FAILED: ${response.statusCode} - ${response.body}',
       );
       throw Exception('Failed to load messages: ${response.statusCode}');
@@ -616,7 +620,7 @@ class ChatService with WidgetsBindingObserver {
     final token = await AuthService.getToken();
     if (token == null) return;
 
-    print('[SignalR] initSignalR: starting parallel connection...');
+    AppConfig.log('[SignalR] initSignalR: starting parallel connection...');
     final sw = Stopwatch()..start();
 
     // Build all hub connections if not yet created
@@ -637,7 +641,9 @@ class ChatService with WidgetsBindingObserver {
     }
 
     sw.stop();
-    print('[SignalR] All hubs connected in ${sw.elapsedMilliseconds}ms');
+    AppConfig.log(
+      '[SignalR] All hubs connected in ${sw.elapsedMilliseconds}ms',
+    );
   }
 
   Future<void> _connectHub(HubConnection? hub, String name) async {
@@ -647,9 +653,11 @@ class ChatService with WidgetsBindingObserver {
         final sw = Stopwatch()..start();
         await hub.start();
         sw.stop();
-        print('[SignalR] $name hub connected in ${sw.elapsedMilliseconds}ms');
+        AppConfig.log(
+          '[SignalR] $name hub connected in ${sw.elapsedMilliseconds}ms',
+        );
       } catch (e) {
-        print('[SignalR] Error connecting $name hub: $e');
+        AppConfig.log('[SignalR] Error connecting $name hub: $e');
       }
     }
   }
@@ -786,7 +794,7 @@ class ChatService with WidgetsBindingObserver {
         .build();
 
     _userHubConnection?.onclose(({Exception? error}) {
-      print('[SignalR] User hub closed: $error');
+      AppConfig.log('[SignalR] User hub closed: $error');
     });
 
     _userHubConnection?.on('FriendRequestReceived', (arguments) {
@@ -938,7 +946,7 @@ class ChatService with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      print('[ChatService] App Resumed -> Checking connections...');
+      AppConfig.log('[ChatService] App Resumed -> Checking connections...');
       // Re-initialize if disconnected (e.g. after being killed)
       if (_hubConnection?.state == HubConnectionState.Disconnected ||
           _presenceHubConnection?.state == HubConnectionState.Disconnected) {
@@ -948,7 +956,7 @@ class ChatService with WidgetsBindingObserver {
       }
     } else if (state == AppLifecycleState.detached) {
       // Only disconnect when the engine is completely detached (app killed)
-      print('[ChatService] App Detached -> Disconnecting...');
+      AppConfig.log('[ChatService] App Detached -> Disconnecting...');
       disconnect();
     }
     // NOTE: Do NOT disconnect on pause — keep connections alive for
@@ -956,7 +964,7 @@ class ChatService with WidgetsBindingObserver {
   }
 
   Future<void> disconnect() async {
-    print('[ChatService] disconnect: stopping SignalR connections...');
+    AppConfig.log('[ChatService] disconnect: stopping SignalR connections...');
     _heartbeatTimer?.cancel();
     try {
       // Timeout each stop() call to prevent hanging forever
@@ -964,26 +972,29 @@ class ChatService with WidgetsBindingObserver {
         if (_hubConnection != null)
           _hubConnection!.stop().timeout(
             const Duration(seconds: 3),
-            onTimeout: () => print('[ChatService] chatHub stop timed out'),
+            onTimeout: () =>
+                AppConfig.log('[ChatService] chatHub stop timed out'),
           ),
         if (_presenceHubConnection != null)
           _presenceHubConnection!.stop().timeout(
             const Duration(seconds: 3),
-            onTimeout: () => print('[ChatService] presenceHub stop timed out'),
+            onTimeout: () =>
+                AppConfig.log('[ChatService] presenceHub stop timed out'),
           ),
         if (_userHubConnection != null)
           _userHubConnection!.stop().timeout(
             const Duration(seconds: 3),
-            onTimeout: () => print('[ChatService] userHub stop timed out'),
+            onTimeout: () =>
+                AppConfig.log('[ChatService] userHub stop timed out'),
           ),
       ]);
     } catch (e) {
-      print('[ChatService] disconnect error (ignored): $e');
+      AppConfig.log('[ChatService] disconnect error (ignored): $e');
     }
     _hubConnection = null;
     _presenceHubConnection = null;
     _userHubConnection = null;
-    print('[ChatService] disconnect: done');
+    AppConfig.log('[ChatService] disconnect: done');
   }
 
   void dispose() {

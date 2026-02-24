@@ -8,6 +8,7 @@ namespace Identity.Infrastructure.Persistence
     {
         public DbSet<User> Users { get; set; }
         public DbSet<OtpEntry> OtpEntries { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         public IdentityDbContext(DbContextOptions<IdentityDbContext> options) : base(options)
         {
@@ -19,6 +20,7 @@ namespace Identity.Infrastructure.Persistence
             
             modelBuilder.Entity<User>(ConfigureUser);
             modelBuilder.Entity<OtpEntry>(ConfigureOtpEntry);
+            modelBuilder.Entity<RefreshToken>(ConfigureRefreshToken);
         }
 
         private void ConfigureUser(EntityTypeBuilder<User> builder)
@@ -69,6 +71,22 @@ namespace Identity.Infrastructure.Persistence
             builder.Property(o => o.Code)
                 .IsRequired()
                 .HasMaxLength(10);
+        }
+
+        private void ConfigureRefreshToken(EntityTypeBuilder<RefreshToken> builder)
+        {
+            builder.ToTable("RefreshTokens");
+
+            builder.HasKey(r => r.Id);
+
+            builder.Property(r => r.Token)
+                .IsRequired()
+                .HasMaxLength(256);
+
+            builder.HasIndex(r => r.Token)
+                .IsUnique();
+
+            builder.HasIndex(r => r.UserId);
         }
     }
 }

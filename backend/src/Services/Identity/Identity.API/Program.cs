@@ -88,10 +88,21 @@ using (var scope = app.Services.CreateScope())
                 ""CreatedAt"" TIMESTAMP WITH TIME ZONE NOT NULL
             );
             CREATE INDEX IF NOT EXISTS ""IX_OtpEntries_PhoneNumber"" ON ""OtpEntries"" (""PhoneNumber"");
+
+            CREATE TABLE IF NOT EXISTS ""RefreshTokens"" (
+                ""Id"" UUID NOT NULL PRIMARY KEY,
+                ""UserId"" UUID NOT NULL,
+                ""Token"" VARCHAR(256) NOT NULL,
+                ""ExpiresAt"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                ""CreatedAt"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                ""IsRevoked"" BOOLEAN NOT NULL DEFAULT FALSE
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_RefreshTokens_Token"" ON ""RefreshTokens"" (""Token"");
+            CREATE INDEX IF NOT EXISTS ""IX_RefreshTokens_UserId"" ON ""RefreshTokens"" (""UserId"");
         ";
         await cmd.ExecuteNonQueryAsync();
         
-        Console.WriteLine("[DB] Schema migration for Phone Auth completed successfully.");
+        Console.WriteLine("[DB] Schema migration for Phone Auth + RefreshTokens completed successfully.");
     }
     catch (Exception ex)
     {
