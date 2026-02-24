@@ -66,10 +66,19 @@ namespace Identity.Application.Features.Auth
             // 3. Generate JWT token
             var token = _tokenService.GenerateToken(user!.Id, user.FullName, user.Email ?? phone);
 
-            // 4. Generate refresh token
-            var refreshTokenValue = _tokenService.GenerateRefreshToken();
-            var refreshToken = new RefreshToken(user.Id, refreshTokenValue);
-            await _userRepository.SaveRefreshTokenAsync(refreshToken);
+            // 4. Generate refresh token (non-blocking — OTP should still succeed even if refresh fails)
+            string refreshTokenValue = "";
+            try
+            {
+                refreshTokenValue = _tokenService.GenerateRefreshToken();
+                var refreshToken = new RefreshToken(user.Id, refreshTokenValue);
+                await _userRepository.SaveRefreshTokenAsync(refreshToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to save refresh token: {ex.Message}");
+                refreshTokenValue = ""; // Return empty — mobile will still work without refresh
+            }
 
             return new VerifyOtpResponse(token, refreshTokenValue, 3600, isNewUser);
         }

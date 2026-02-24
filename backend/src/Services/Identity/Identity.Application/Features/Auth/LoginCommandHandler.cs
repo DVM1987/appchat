@@ -36,10 +36,19 @@ namespace Identity.Application.Features.Auth
             // 3. Generate Token
             var token = _tokenService.GenerateToken(user.Id, user.FullName, user.Email);
 
-            // 4. Generate Refresh Token
-            var refreshTokenValue = _tokenService.GenerateRefreshToken();
-            var refreshToken = new RefreshToken(user.Id, refreshTokenValue);
-            await _userRepository.SaveRefreshTokenAsync(refreshToken);
+            // 4. Generate Refresh Token (non-blocking)
+            string refreshTokenValue = "";
+            try
+            {
+                refreshTokenValue = _tokenService.GenerateRefreshToken();
+                var refreshToken = new RefreshToken(user.Id, refreshTokenValue);
+                await _userRepository.SaveRefreshTokenAsync(refreshToken);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to save refresh token: {ex.Message}");
+                refreshTokenValue = "";
+            }
 
             // 5. Return
             return new LoginResponse(token, refreshTokenValue, 3600);
