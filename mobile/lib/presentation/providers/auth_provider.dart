@@ -61,9 +61,9 @@ class AuthProvider with ChangeNotifier {
           }
         }
 
-        // Fetch latest profile (name + avatar)
+        // Fetch latest profile (name + avatar) — non-blocking
         if (_userId != null) {
-          await _fetchLatestProfile(_userId!, prefs);
+          _fetchLatestProfile(_userId!, prefs).then((_) => notifyListeners());
         }
       } else {
         // Token expired — try to refresh
@@ -88,9 +88,9 @@ class AuthProvider with ChangeNotifier {
             }
           } catch (_) {}
 
-          // Fetch latest profile (name + avatar)
+          // Fetch latest profile (name + avatar) — non-blocking
           if (_userId != null) {
-            await _fetchLatestProfile(_userId!, prefs);
+            _fetchLatestProfile(_userId!, prefs).then((_) => notifyListeners());
           }
         } else {
           // Refresh failed — force logout
