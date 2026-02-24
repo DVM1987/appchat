@@ -63,8 +63,23 @@ namespace Identity.Application.Features.Auth
                 }
             }
 
-            // 3. Generate JWT token
-            var token = _tokenService.GenerateToken(user!.Id, user.FullName, user.Email ?? phone);
+            // 3. For existing users, fetch latest name from User service (in case profile was updated)
+            var displayName = user!.FullName;
+            if (!isNewUser)
+            {
+                try
+                {
+                    var latestName = await _userServiceClient.GetUserFullNameAsync(user.Id);
+                    if (!string.IsNullOrEmpty(latestName))
+                    {
+                        displayName = latestName;
+                    }
+                }
+                catch { /* Use Identity DB name as fallback */ }
+            }
+
+            // 4. Generate JWT token with latest name
+            var token = _tokenService.GenerateToken(user.Id, displayName, user.Email ?? phone);
 
             // 4. Generate refresh token (non-blocking — OTP should still succeed even if refresh fails)
             string refreshTokenValue = "";

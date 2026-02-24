@@ -33,5 +33,27 @@ namespace Identity.Infrastructure.Services
                 throw new Exception($"Failed to create user profile: {response.StatusCode} - {error}");
             }
         }
+
+        public async Task<string?> GetUserFullNameAsync(Guid identityId)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/v1/users/identity/{identityId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var json = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("fullName", out var nameProp))
+                    {
+                        return nameProp.GetString();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to get user profile name: {ex.Message}");
+            }
+            return null;
+        }
     }
 }
