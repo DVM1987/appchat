@@ -98,13 +98,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    print('[Profile] _logout pressed');
+    AppConfig.log('[Profile] _logout pressed');
     try {
       context.read<UserProvider>().clear();
       context.read<ChatProvider>().clear();
       await context.read<AuthProvider>().logout();
     } catch (e) {
-      print('[Profile] logout error (ignored): $e');
+      AppConfig.log('[Profile] logout error (ignored): $e');
     }
     // Always navigate to login, even if logout had errors
     if (mounted) {

@@ -110,15 +110,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Future<void> _initChat() async {
     try {
-      print(
+      AppConfig.log(
         '[ChatScreen] InitChat for chatId: ${widget.chatId}, isGroup: ${widget.isGroup}',
       );
       _currentUserId = await AuthService.getUserId();
-      print('[ChatScreen] currentUserId: $_currentUserId');
+      AppConfig.log('[ChatScreen] currentUserId: $_currentUserId');
 
       // Ensure SignalR is initialized/connected first with latest token
       await _chatService.initSignalR();
-      print('[ChatScreen] SignalR initialized');
+      AppConfig.log('[ChatScreen] SignalR initialized');
 
       if (widget.isGroup) {
         _conversationId = widget.chatId;
@@ -133,11 +133,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       } else {
         // Chat 1-1: chatId is FriendId
-        print(
+        AppConfig.log(
           '[ChatScreen] Creating/getting conversation for friend: ${widget.chatId}',
         );
         _conversationId = await _chatService.createConversation(widget.chatId);
-        print('[ChatScreen] Got conversationId: $_conversationId');
+        AppConfig.log('[ChatScreen] Got conversationId: $_conversationId');
       }
 
       if (mounted) {
@@ -147,9 +147,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
 
       // 2. Load History
-      print('[ChatScreen] Loading messages for conversation: $_conversationId');
+      AppConfig.log('[ChatScreen] Loading messages for conversation: $_conversationId');
       final history = await _chatService.getMessages(_conversationId!);
-      print('[ChatScreen] Loaded ${history.length} messages');
+      AppConfig.log('[ChatScreen] Loaded ${history.length} messages');
       _prepareUnreadDividerFromMessages(history);
 
       // 3. Join Conversation Channel
@@ -178,8 +178,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       }
     } catch (e, stackTrace) {
-      print('[ChatScreen] ERROR in _initChat: $e');
-      print('[ChatScreen] StackTrace: $stackTrace');
+      AppConfig.log('[ChatScreen] ERROR in _initChat: $e');
+      AppConfig.log('[ChatScreen] StackTrace: $stackTrace');
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -558,7 +558,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             final parsed = DateTime.tryParse(lastSeenStr)?.toLocal();
             // Filter out .NET DateTime.MinValue (0001-01-01) — means "never seen"
             _lastSeen = (parsed != null && parsed.year > 1) ? parsed : null;
-            print(
+            AppConfig.log(
               '[Presence] lastSeen raw: ${presence['lastSeen']}, parsed: $_lastSeen, isOnline: $isOnline',
             );
           }
@@ -575,7 +575,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         }
       }
     } catch (e) {
-      print('[Presence] Error fetching presence: $e');
+      AppConfig.log('[Presence] Error fetching presence: $e');
     }
   }
 

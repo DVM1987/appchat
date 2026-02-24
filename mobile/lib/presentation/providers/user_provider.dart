@@ -55,7 +55,7 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('[UserProvider] loadData: fetching friends, pending, profile...');
+      AppConfig.log('[UserProvider] loadData: fetching friends, pending, profile...');
       final results = await Future.wait([
         _userService.getFriends(),
         _userService.getPendingRequests(),
@@ -65,14 +65,14 @@ class UserProvider extends ChangeNotifier {
       _friends = results[0] as List<dynamic>;
       _pendingRequests = results[1] as List<dynamic>;
       _myProfile = results[2] as Map<String, dynamic>?;
-      print(
+      AppConfig.log(
         '[UserProvider] loadData: ${_friends.length} friends, ${_pendingRequests.length} pending',
       );
 
       _isLoading = false;
       notifyListeners();
     } catch (e) {
-      print('[UserProvider] loadData error: $e');
+      AppConfig.log('[UserProvider] loadData error: $e');
       _isLoading = false;
       _error = e.toString();
       notifyListeners();
