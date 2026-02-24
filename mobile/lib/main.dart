@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -14,19 +16,49 @@ import 'presentation/screens/auth/phone_input_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Global error handler — catch ALL uncaught async/sync errors
+  runZonedGuarded<Future<void>>(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
+      // Catch Flutter framework errors
+      FlutterError.onError = (FlutterErrorDetails details) {
+        FlutterError.presentError(details);
+        debugPrint('[FlutterError] ${details.exception}');
+        debugPrint('[FlutterError] ${details.stack}');
+      };
 
-  // Register background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      // Initialize Firebase
+      try {
+        await Firebase.initializeApp();
+      } catch (e) {
+        debugPrint('[INIT] Firebase init error: $e');
+      }
 
-  // Initialize push notifications (do NOT await here, it blocks the UI thread)
-  // On iOS free developer accounts, waiting for APNs can take 20s and cause Watchdog to kill the app.
-  PushNotificationService().initialize();
+      // Register background message handler
+      try {
+        FirebaseMessaging.onBackgroundMessage(
+          firebaseMessagingBackgroundHandler,
+        );
+      } catch (e) {
+        debugPrint('[INIT] Background handler error: $e');
+      }
 
-  runApp(const MyApp());
+      // Initialize push notifications (non-blocking, with error handling)
+      try {
+        PushNotificationService().initialize();
+      } catch (e) {
+        debugPrint('[INIT] Push notification init error: $e');
+      }
+
+      runApp(const MyApp());
+    },
+    (error, stackTrace) {
+      // This catches ALL uncaught async errors
+      debugPrint('[ZONE ERROR] $error');
+      debugPrint('[ZONE STACK] $stackTrace');
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {
