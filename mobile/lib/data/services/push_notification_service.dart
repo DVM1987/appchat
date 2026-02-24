@@ -95,13 +95,17 @@ class PushNotificationService {
         String? apnsToken = await _messaging.getAPNSToken();
         int retries = 0;
         while (apnsToken == null && retries < 5) {
-          AppConfig.log('[FCM] Waiting for APNs token... attempt ${retries + 1}');
+          AppConfig.log(
+            '[FCM] Waiting for APNs token... attempt ${retries + 1}',
+          );
           await Future.delayed(const Duration(seconds: 2));
           apnsToken = await _messaging.getAPNSToken();
           retries++;
         }
         if (apnsToken != null) {
-          AppConfig.log('[FCM] APNs token received: ${apnsToken.substring(0, 20)}...');
+          AppConfig.log(
+            '[FCM] APNs token received: ${apnsToken.substring(0, 20)}...',
+          );
         } else {
           AppConfig.log(
             '[FCM] APNs token not available after retries - push notifications may not work',
@@ -213,7 +217,7 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    _lastNotification = _NotificationData(
+    _lastNotification = NotificationData(
       title: notification.title ?? 'MChat',
       body: notification.body ?? '',
       data: message.data,
@@ -323,7 +327,9 @@ class PushNotificationService {
     try {
       final authToken = await AuthService.getToken();
       if (authToken == null) {
-        AppConfig.log('[FCM] WARNING: authToken is NULL, cannot register device token');
+        AppConfig.log(
+          '[FCM] WARNING: authToken is NULL, cannot register device token',
+        );
         return;
       }
 
@@ -345,7 +351,9 @@ class PushNotificationService {
         }),
       );
 
-      AppConfig.log('[FCM] Register response: ${response.statusCode} ${response.body}');
+      AppConfig.log(
+        '[FCM] Register response: ${response.statusCode} ${response.body}',
+      );
 
       if (response.statusCode == 200) {
         AppConfig.log('[FCM] ✅ Token registered successfully!');
@@ -408,21 +416,21 @@ class PushNotificationService {
   // ════════════════════════════════════════════
   // UI CALLBACKS
   // ════════════════════════════════════════════
-  void Function(_NotificationData notification)? onForegroundNotification;
+  void Function(NotificationData notification)? onForegroundNotification;
   void Function(String conversationId)? onNavigateToConversation;
   void Function(String callerId, String callerName, String callType)?
   onIncomingCallNotification;
   VoidCallback? onNavigateToFriends;
 
-  _NotificationData? _lastNotification;
+  NotificationData? _lastNotification;
 }
 
-class _NotificationData {
+class NotificationData {
   final String title;
   final String body;
   final Map<String, dynamic> data;
 
-  _NotificationData({
+  NotificationData({
     required this.title,
     required this.body,
     required this.data,

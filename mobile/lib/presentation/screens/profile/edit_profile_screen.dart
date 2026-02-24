@@ -87,10 +87,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (mounted) {
         await context.read<AuthProvider>().checkAuthStatus();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
-        );
-        Navigator.pop(context, true); // Return true to indicate changes
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cập nhật hồ sơ thành công!')),
+          );
+          Navigator.pop(context, true); // Return true to indicate changes
+        }
       }
     } catch (e) {
       if (mounted) {

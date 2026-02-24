@@ -287,7 +287,7 @@ class _FriendsTabState extends State<FriendsTab> {
     Color color = Colors.blue,
   }) {
     return Material(
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,

@@ -250,8 +250,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     }
   }
 
-  void _onKeyPressed(int index, RawKeyEvent event) {
-    if (event is RawKeyDownEvent &&
+  void _onKeyPressed(int index, KeyEvent event) {
+    if (event is KeyDownEvent &&
         event.logicalKey == LogicalKeyboardKey.backspace &&
         _controllers[index].text.isEmpty &&
         index > 0) {
@@ -311,9 +311,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 return SizedBox(
                   width: 45,
                   height: 55,
-                  child: RawKeyboardListener(
+                  child: KeyboardListener(
                     focusNode: FocusNode(),
-                    onKey: (event) => _onKeyPressed(index, event),
+                    onKeyEvent: (event) => _onKeyPressed(index, event),
                     child: TextField(
                       controller: _controllers[index],
                       focusNode: _focusNodes[index],

@@ -79,10 +79,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('user_avatar', imageUrl);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cập nhật ảnh đại diện thành công!')),
-        );
-        context.read<AuthProvider>().checkAuthStatus();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cập nhật ảnh đại diện thành công!')),
+          );
+          context.read<AuthProvider>().checkAuthStatus();
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -82,7 +82,7 @@ class _MyQrCodeScreenState extends State<MyQrCodeScreen> {
                   // Avatar + Name
                   CircleAvatar(
                     radius: 40,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     child: Text(
                       (_userName ?? 'U')[0].toUpperCase(),
                       style: TextStyle(
@@ -115,13 +115,13 @@ class _MyQrCodeScreenState extends State<MyQrCodeScreen> {
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primary.withOpacity(0.1),
+                          color: AppColors.primary.withValues(alpha: 0.1),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
                       ],
                       border: Border.all(
-                        color: AppColors.primary.withOpacity(0.15),
+                        color: AppColors.primary.withValues(alpha: 0.15),
                         width: 2,
                       ),
                     ),
@@ -206,7 +206,7 @@ class _MyQrCodeScreenState extends State<MyQrCodeScreen> {
     Color color = Colors.blue,
   }) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
