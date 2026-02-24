@@ -111,4 +111,16 @@ class UserProvider extends ChangeNotifier {
       rethrow;
     }
   }
+
+  /// Send friend request by Identity ID (used by QR scan)
+  Future<void> sendFriendRequestByIdentityId(String identityId) async {
+    try {
+      await _userService.sendFriendRequestByIdentityId(identityId);
+      await loadData(); // Reload to update lists
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
 }

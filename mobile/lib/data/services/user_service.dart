@@ -104,7 +104,44 @@ class UserService {
     }
   }
 
-  // Send friend request
+  // Get user profile by Identity ID (for QR friend add)
+  Future<Map<String, dynamic>?> getProfileByIdentityId(
+    String identityId,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/v1/users/identity/$identityId'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else if (response.statusCode == 404) {
+        return null;
+      }
+      throw Exception('Failed to get profile: ${response.statusCode}');
+    } catch (e) {
+      AppConfig.log('[UserService] getProfileByIdentityId error: $e');
+      rethrow;
+    }
+  }
+
+  // Send friend request by Identity ID (resolve identity → profile → request)
+  Future<void> sendFriendRequestByIdentityId(String identityId) async {
+    final profile = await getProfileByIdentityId(identityId);
+    if (profile == null) {
+      throw Exception('Người dùng không tồn tại');
+    }
+    final profileId = profile['id'] as String;
+    await sendFriendRequest(profileId);
+  }
+
   Future<void> sendFriendRequest(String toUserId) async {
     try {
       final prefs = await SharedPreferences.getInstance();

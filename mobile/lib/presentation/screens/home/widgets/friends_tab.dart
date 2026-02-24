@@ -7,6 +7,8 @@ import '../../../providers/chat_provider.dart';
 import '../../../providers/user_provider.dart';
 import '../../../widgets/common/custom_avatar.dart';
 import '../../chat/chat_screen.dart';
+import '../../group/qr_scanner_screen.dart';
+import '../../profile/my_qr_code_screen.dart';
 
 class FriendsTab extends StatefulWidget {
   const FriendsTab({super.key});
@@ -19,9 +21,6 @@ class _FriendsTabState extends State<FriendsTab> {
   @override
   void initState() {
     super.initState();
-    // Use listen: false to access provider in initState safely
-    // However, build() will trigger loadData when userProvider notifies.
-    // Ideally, load data once.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<UserProvider>().loadData();
     });
@@ -40,6 +39,40 @@ class _FriendsTabState extends State<FriendsTab> {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // QR Code Actions
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildQrButton(
+                      icon: Icons.qr_code,
+                      label: 'QR của tôi',
+                      color: AppColors.primary,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MyQrCodeScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildQrButton(
+                      icon: Icons.qr_code_scanner,
+                      label: 'Quét mã QR',
+                      color: Colors.green,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const QrScannerScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
               // 1. Pending Requests Section
               if (userProvider.pendingRequests.isNotEmpty) ...[
                 const Text(
@@ -242,6 +275,40 @@ class _FriendsTabState extends State<FriendsTab> {
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQrButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = Colors.blue,
+  }) {
+    return Material(
+      color: color.withOpacity(0.08),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
