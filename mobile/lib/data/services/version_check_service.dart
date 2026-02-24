@@ -46,8 +46,11 @@ class VersionCheckService {
       final currentVersion = packageInfo.version; // e.g. "1.0.0"
       final platform = Platform.isIOS ? 'ios' : 'android';
 
+      // Version check endpoint is on the Identity service (port 5002),
+      // not the Gateway (port 5001). Adjust the base URL accordingly.
+      final baseUrl = AppConfig.apiBaseUrl.replaceFirst(':5001', ':5002');
       final url =
-          '${AppConfig.apiBaseUrl}/api/v1/appversion/check?platform=$platform&currentVersion=$currentVersion';
+          '$baseUrl/api/v1/appversion/check?platform=$platform&currentVersion=$currentVersion';
 
       AppConfig.log('[VersionCheck] Checking: $url');
 
