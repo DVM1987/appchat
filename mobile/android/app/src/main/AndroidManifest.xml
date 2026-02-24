@@ -23,7 +23,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <application
-        android:label="AppChat"
+        android:label="MChat"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -55,7 +55,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text(
-          'QR code không hợp lệ. Vui lòng quét mã mời nhóm AppChat.',
+          'QR code không hợp lệ. Vui lòng quét mã mời nhóm MChat.',
         ),
         behavior: SnackBarBehavior.floating,
         backgroundColor: Colors.orange.shade700,

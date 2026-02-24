@@ -112,7 +112,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
       scheme: 'mailto',
       path: 'support@appchat.vn',
       queryParameters: {
-        'subject': 'Hỗ trợ AppChat v$_appVersion',
+        'subject': 'Hỗ trợ MChat v$_appVersion',
         'body':
             'Mô tả vấn đề của bạn tại đây...\n\n---\nPhiên bản: $_appVersion+$_buildNumber',
       },
@@ -195,7 +195,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'AppChat',
+                    'MChat',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 22,
@@ -341,9 +341,9 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 onTap: () {
                   showLicensePage(
                     context: context,
-                    applicationName: 'AppChat',
+                    applicationName: 'MChat',
                     applicationVersion: 'v$_appVersion',
-                    applicationLegalese: '© 2026 AppChat Team',
+                    applicationLegalese: '© 2026 MChat Team',
                   );
                 },
               ),
@@ -376,12 +376,12 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                 icon: Icons.share_outlined,
                 iconColor: AppColors.primary,
                 title: 'Giới thiệu cho bạn bè',
-                subtitle: 'Chia sẻ AppChat với bạn bè của bạn',
+                subtitle: 'Chia sẻ MChat với bạn bè của bạn',
                 onTap: () {
                   Clipboard.setData(
                     const ClipboardData(
                       text:
-                          'Tải AppChat - Ứng dụng nhắn tin bảo mật! https://appchat.vn',
+                          'Tải MChat - Ứng dụng nhắn tin bảo mật! https://appchat.vn',
                     ),
                   );
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -409,7 +409,7 @@ class _HelpSupportScreenState extends State<HelpSupportScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '© 2026 AppChat Team • v$_appVersion',
+                    '© 2026 MChat Team • v$_appVersion',
                     style: const TextStyle(
                       color: AppColors.textPlaceholder,
                       fontSize: 11,

@@ -255,7 +255,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
           ],
         ),
         content: const Text(
-          'Khóa ứng dụng đã được bật. Mỗi lần mở AppChat, bạn sẽ cần xác thực '
+          'Khóa ứng dụng đã được bật. Mỗi lần mở MChat, bạn sẽ cần xác thực '
           'bằng vân tay hoặc Face ID.\n\n'
           'Lưu ý: Tính năng này sẽ được tích hợp đầy đủ trong phiên bản tiếp theo.',
           style: TextStyle(

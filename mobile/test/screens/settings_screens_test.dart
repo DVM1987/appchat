@@ -185,10 +185,10 @@ void main() {
       expect(find.text('Trợ giúp & Hỗ trợ'), findsOneWidget);
     });
 
-    testWidgets('shows AppChat banner with version', (tester) async {
+    testWidgets('shows MChat banner with version', (tester) async {
       await tester.pumpWidget(const MaterialApp(home: HelpSupportScreen()));
       await tester.pumpAndSettle();
-      expect(find.text('AppChat'), findsOneWidget);
+      expect(find.text('MChat'), findsOneWidget);
       expect(find.text('Ứng dụng nhắn tin & gọi điện bảo mật'), findsOneWidget);
     });
 

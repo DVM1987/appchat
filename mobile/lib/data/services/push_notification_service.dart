@@ -34,7 +34,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 const AndroidNotificationChannel _messageChannel = AndroidNotificationChannel(
   'appchat_messages', // must match backend AndroidNotification.ChannelId
   'Tin nhắn',
-  description: 'Thông báo tin nhắn mới từ AppChat',
+  description: 'Thông báo tin nhắn mới từ MChat',
   importance: Importance.high,
   playSound: true,
   enableVibration: true,
@@ -214,7 +214,7 @@ class PushNotificationService {
     if (notification == null) return;
 
     _lastNotification = _NotificationData(
-      title: notification.title ?? 'AppChat',
+      title: notification.title ?? 'MChat',
       body: notification.body ?? '',
       data: message.data,
     );
@@ -229,7 +229,7 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
-    final title = notification.title ?? 'AppChat';
+    final title = notification.title ?? 'MChat';
     final body = notification.body ?? '';
 
     // Determine channel based on notification type
