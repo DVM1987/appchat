@@ -10,6 +10,7 @@ import 'package:signalr_netcore/signalr_client.dart';
 
 import '../../core/config/app_config.dart';
 import 'auth_service.dart';
+import 'sound_service.dart';
 
 class ChatService with WidgetsBindingObserver {
   static final ChatService _instance = ChatService._internal();
@@ -689,6 +690,7 @@ class ChatService with WidgetsBindingObserver {
     _hubConnection?.on('ReceiveMessage', (arguments) {
       if (arguments != null && arguments.isNotEmpty) {
         _messageController.add(arguments[0]);
+        SoundService().playMessageSound();
       }
     });
     _hubConnection?.on('MessagesRead', (arguments) {
@@ -736,17 +738,23 @@ class ChatService with WidgetsBindingObserver {
         final raw = arguments[0];
         if (raw is Map) {
           final data = raw.map((k, v) => MapEntry(k.toString(), v));
+          SoundService().playRingtone();
           onIncomingCall?.call(data);
         }
       }
     });
     _hubConnection?.on('CallAccepted', (arguments) {
+      SoundService().stopRingtone();
       onCallAccepted?.call();
     });
     _hubConnection?.on('CallRejected', (arguments) {
+      SoundService().stopRingtone();
+      SoundService().playCallEnd();
       onCallRejected?.call();
     });
     _hubConnection?.on('CallEnded', (arguments) {
+      SoundService().stopRingtone();
+      SoundService().playCallEnd();
       onCallEnded?.call();
     });
   }
