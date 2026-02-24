@@ -11,7 +11,10 @@ import '../../providers/chat_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/custom_avatar.dart';
 import '../auth/phone_input_screen.dart';
+import 'account_settings_screen.dart';
 import 'edit_profile_screen.dart';
+import 'help_support_screen.dart';
+import 'privacy_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId; // Optional: If null, show current user
@@ -292,10 +295,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'Chỉnh sửa hồ sơ',
                 onTap: _openEditProfile,
               ),
-              _buildOptionItem(Icons.settings, 'Cài đặt tài khoản'),
-              _buildOptionItem(Icons.notifications, 'Thông báo'),
-              _buildOptionItem(Icons.privacy_tip, 'Quyền riêng tư'),
-              _buildOptionItem(Icons.help, 'Trợ giúp & Hỗ trợ'),
+              _buildOptionItem(
+                Icons.settings,
+                'Cài đặt tài khoản',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AccountSettingsScreen(),
+                  ),
+                ),
+              ),
+              _buildOptionItem(
+                Icons.privacy_tip,
+                'Quyền riêng tư',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PrivacySettingsScreen(),
+                  ),
+                ),
+              ),
+              _buildOptionItem(
+                Icons.help,
+                'Trợ giúp & Hỗ trợ',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                ),
+              ),
             ] else ...[
               _buildOptionItem(Icons.chat_outlined, 'Gửi tin nhắn'),
               _buildOptionItem(Icons.call_outlined, 'Gọi điện'),
