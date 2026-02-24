@@ -4,14 +4,15 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_text_styles.dart';
 import '../../../../core/utils/date_formatter.dart';
 import '../../../../domain/entities/conversation.dart';
-import '../../chat/forward_message_codec.dart';
 import '../../../widgets/common/custom_avatar.dart';
+import '../../chat/forward_message_codec.dart';
 
 class ChatItem extends StatelessWidget {
   final Conversation conversation;
   final VoidCallback onTap;
   final VoidCallback? onArchive;
   final VoidCallback? onMore;
+  final VoidCallback? onDelete;
   final bool isSelectionMode;
   final bool isSelected;
 
@@ -21,6 +22,7 @@ class ChatItem extends StatelessWidget {
     required this.onTap,
     this.onArchive,
     this.onMore,
+    this.onDelete,
     this.isSelectionMode = false,
     this.isSelected = false,
   });
@@ -32,6 +34,38 @@ class ChatItem extends StatelessWidget {
       direction: isSelectionMode
           ? DismissDirection.none
           : DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        // Show confirmation dialog before deleting
+        return await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: AppColors.surface,
+                title: const Text(
+                  'Xóa cuộc trò chuyện?',
+                  style: TextStyle(color: AppColors.textPrimary),
+                ),
+                content: Text(
+                  'Cuộc trò chuyện với "${conversation.name}" sẽ bị xóa vĩnh viễn và không thể khôi phục.',
+                  style: const TextStyle(color: AppColors.textSecondary),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(false),
+                    child: const Text('Hủy'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(true),
+                    style: TextButton.styleFrom(foregroundColor: Colors.red),
+                    child: const Text('Xóa'),
+                  ),
+                ],
+              ),
+            ) ??
+            false;
+      },
+      onDismissed: (_) {
+        onDelete?.call();
+      },
       background: _buildSwipeBackground(),
       child: InkWell(
         onTap: onTap,
@@ -129,14 +163,13 @@ class ChatItem extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 4,
-                        ), // Adjusted padding
+                        ),
                         constraints: const BoxConstraints(
                           minWidth: 20,
                           minHeight: 20,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors
-                              .primary, // Or use specific badge color (red?)
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
@@ -237,38 +270,20 @@ class ChatItem extends StatelessWidget {
 
   Widget _buildSwipeBackground() {
     return Container(
-      color: AppColors.surface,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+      color: Colors.red,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 24),
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 100,
-            color: AppColors.surfaceLight,
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.more_horiz, color: AppColors.textPrimary),
-                SizedBox(height: 4),
-                Text(
-                  'More',
-                  style: TextStyle(color: AppColors.textPrimary, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 100,
-            color: AppColors.primary,
-            child: const Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.archive, color: AppColors.background),
-                SizedBox(height: 4),
-                Text(
-                  'Archive',
-                  style: TextStyle(color: AppColors.background, fontSize: 12),
-                ),
-              ],
+          Icon(Icons.delete_forever, color: Colors.white, size: 28),
+          SizedBox(height: 4),
+          Text(
+            'Xóa',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

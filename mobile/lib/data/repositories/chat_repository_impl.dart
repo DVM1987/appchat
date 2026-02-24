@@ -51,7 +51,6 @@ class ChatRepositoryImpl implements ChatRepository {
 
   @override
   Future<void> deleteConversation(String conversationId) async {
-    // TODO: Implement delete logic
-    await Future.delayed(const Duration(milliseconds: 300));
+    await _chatService.disbandConversation(conversationId);
   }
 }

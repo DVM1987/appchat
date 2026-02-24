@@ -179,6 +179,12 @@ class _ChatListState extends State<ChatList> {
                 onArchive: () {
                   provider.archiveConversation(conversation.id);
                 },
+                onDelete: () {
+                  // 1. Hide locally (instant UI removal)
+                  provider.hideConversations({conversation.id});
+                  // 2. Delete from backend DB (permanent)
+                  provider.deleteConversation(conversation.id);
+                },
               );
             },
           ),
