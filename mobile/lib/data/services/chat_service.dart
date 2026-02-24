@@ -618,47 +618,58 @@ class ChatService with WidgetsBindingObserver {
 
   // SignalR
   Future<void> initSignalR() async {
-    final token = await AuthService.getToken();
-    if (token == null) return;
+    try {
+      final token = await AuthService.getToken();
+      if (token == null) return;
 
-    AppConfig.log('[SignalR] initSignalR: starting parallel connection...');
-    final sw = Stopwatch()..start();
+      debugPrint('[SignalR] initSignalR: starting parallel connection...');
+      final sw = Stopwatch()..start();
 
-    // Build all hub connections if not yet created
-    _buildChatHub(token);
-    _buildPresenceHub(token);
-    _buildUserHub(token);
+      // Build all hub connections if not yet created
+      _buildChatHub(token);
+      _buildPresenceHub(token);
+      _buildUserHub(token);
 
-    // Connect all hubs IN PARALLEL
-    await Future.wait([
-      _connectHub(_hubConnection, 'Chat'),
-      _connectHub(_presenceHubConnection, 'Presence'),
-      _connectHub(_userHubConnection, 'User'),
-    ]);
+      // Connect all hubs IN PARALLEL (with individual timeouts)
+      await Future.wait([
+        _connectHub(_hubConnection, 'Chat'),
+        _connectHub(_presenceHubConnection, 'Presence'),
+        _connectHub(_userHubConnection, 'User'),
+      ]);
 
-    // Start heartbeat after presence is connected
-    if (_presenceHubConnection?.state == HubConnectionState.Connected) {
-      _startHeartbeat();
+      // Start heartbeat after presence is connected
+      if (_presenceHubConnection?.state == HubConnectionState.Connected) {
+        _startHeartbeat();
+      }
+
+      sw.stop();
+      debugPrint('[SignalR] All hubs connected in ${sw.elapsedMilliseconds}ms');
+    } catch (e) {
+      debugPrint('[SignalR] initSignalR error: $e');
     }
-
-    sw.stop();
-    AppConfig.log(
-      '[SignalR] All hubs connected in ${sw.elapsedMilliseconds}ms',
-    );
   }
 
   Future<void> _connectHub(HubConnection? hub, String name) async {
     if (hub == null) return;
-    if (hub.state == HubConnectionState.Disconnected) {
+    final connection = hub; // promote to non-null
+    if (connection.state == HubConnectionState.Disconnected) {
       try {
         final sw = Stopwatch()..start();
-        await hub.start();
+        final startFuture = connection.start();
+        if (startFuture != null) {
+          await startFuture.timeout(
+            const Duration(seconds: 8),
+            onTimeout: () {
+              debugPrint('[SignalR] $name hub connection timed out after 8s');
+            },
+          );
+        }
         sw.stop();
-        AppConfig.log(
+        debugPrint(
           '[SignalR] $name hub connected in ${sw.elapsedMilliseconds}ms',
         );
       } catch (e) {
-        AppConfig.log('[SignalR] Error connecting $name hub: $e');
+        debugPrint('[SignalR] Error connecting $name hub: $e');
       }
     }
   }

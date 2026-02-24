@@ -40,23 +40,66 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<UserProvider>().loadData();
-      ChatService().initSignalR();
-      // Load hidden chats cache so filtering works immediately
-      context.read<ChatProvider>().ensureHiddenChatsLoaded();
-
-      // Listen for incoming calls
-      _setupIncomingCallListener();
-
-      // Listen for deep links
-      _setupDeepLinkListener();
-
-      // Setup push notification handlers
-      _setupPushNotifications();
-
-      // Check for app updates (soft/force)
-      UpdateDialog.checkAndShow(context);
+      _safeInit();
     });
+  }
+
+  /// Safely initialize all services — each wrapped individually
+  /// so a failure in one doesn't crash the entire app.
+  Future<void> _safeInit() async {
+    // 1. Load user data
+    try {
+      context.read<UserProvider>().loadData();
+    } catch (e) {
+      debugPrint('[HomeScreen] UserProvider.loadData error: $e');
+    }
+
+    // 2. Initialize SignalR (with timeout to prevent hanging)
+    try {
+      await ChatService().initSignalR().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          debugPrint('[HomeScreen] SignalR init timed out after 10s');
+        },
+      );
+    } catch (e) {
+      debugPrint('[HomeScreen] SignalR init error: $e');
+    }
+
+    // 3. Load hidden chats cache
+    try {
+      context.read<ChatProvider>().ensureHiddenChatsLoaded();
+    } catch (e) {
+      debugPrint('[HomeScreen] ensureHiddenChatsLoaded error: $e');
+    }
+
+    // 4. Listen for incoming calls
+    try {
+      _setupIncomingCallListener();
+    } catch (e) {
+      debugPrint('[HomeScreen] setupIncomingCallListener error: $e');
+    }
+
+    // 5. Listen for deep links
+    try {
+      _setupDeepLinkListener();
+    } catch (e) {
+      debugPrint('[HomeScreen] setupDeepLinkListener error: $e');
+    }
+
+    // 6. Setup push notification handlers
+    try {
+      _setupPushNotifications();
+    } catch (e) {
+      debugPrint('[HomeScreen] setupPushNotifications error: $e');
+    }
+
+    // 7. Check for app updates (soft/force)
+    try {
+      UpdateDialog.checkAndShow(context);
+    } catch (e) {
+      debugPrint('[HomeScreen] UpdateDialog.checkAndShow error: $e');
+    }
   }
 
   void _setupPushNotifications() {
