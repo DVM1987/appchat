@@ -17,6 +17,7 @@ class AuthProvider with ChangeNotifier {
   String? _userId;
   String? _userName;
   String? _userEmail;
+  String? _userAvatar;
   int? _tokenExpiresIn;
 
   bool get isAuthenticated => _isAuthenticated;
@@ -24,6 +25,7 @@ class AuthProvider with ChangeNotifier {
   String? get userId => _userId;
   String? get userName => _userName;
   String? get userEmail => _userEmail;
+  String? get userAvatar => _userAvatar;
 
   // Check if user is already logged in (on app start)
   Future<void> checkAuthStatus() async {
@@ -32,6 +34,7 @@ class AuthProvider with ChangeNotifier {
     _userId = prefs.getString('user_id');
     _userName = prefs.getString('user_name');
     _userEmail = prefs.getString('user_email');
+    _userAvatar = prefs.getString('user_avatar');
 
     // Check if token exists and is not expired
     if (_token != null) {
@@ -57,6 +60,11 @@ class AuthProvider with ChangeNotifier {
             AppConfig.log('Error decoding token in checkAuthStatus: $e');
           }
         }
+
+        // Fetch latest profile (name + avatar)
+        if (_userId != null) {
+          await _fetchLatestProfile(_userId!, prefs);
+        }
       } else {
         // Token expired — try to refresh
         final newToken = await AuthService.refreshAccessToken();
@@ -79,6 +87,11 @@ class AuthProvider with ChangeNotifier {
               await prefs.setString('user_name', _userName!);
             }
           } catch (_) {}
+
+          // Fetch latest profile (name + avatar)
+          if (_userId != null) {
+            await _fetchLatestProfile(_userId!, prefs);
+          }
         } else {
           // Refresh failed — force logout
           await logout();
@@ -169,6 +182,7 @@ class AuthProvider with ChangeNotifier {
     _userId = null;
     _userName = null;
     _userEmail = null;
+    _userAvatar = null;
     _tokenExpiresIn = null;
     _isAuthenticated = false;
 
@@ -179,6 +193,7 @@ class AuthProvider with ChangeNotifier {
     await prefs.remove('user_id');
     await prefs.remove('user_name');
     await prefs.remove('user_email');
+    await prefs.remove('user_avatar');
     await prefs.remove('token_expires_at');
 
     // Notify any registered logout callbacks (to clear providers)
@@ -282,6 +297,13 @@ class AuthProvider with ChangeNotifier {
           _userName = latestName;
           await prefs.setString('user_name', latestName);
           AppConfig.log('[Auth] Updated name from profile: $latestName');
+        }
+        // Persist avatar URL
+        final latestAvatar = profile['avatarUrl'] as String?;
+        if (latestAvatar != null && latestAvatar.isNotEmpty) {
+          _userAvatar = latestAvatar;
+          await prefs.setString('user_avatar', latestAvatar);
+          AppConfig.log('[Auth] Updated avatar from profile: $latestAvatar');
         }
       }
     } catch (e) {

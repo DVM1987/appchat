@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
@@ -72,31 +73,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (imageUrl == null) throw Exception('Upload failed');
 
       // 2. Update Profile with new Avatar URL
-      // Construct full URL if backend returns relative
-      // Note: Backend returns relative path /uploads/filename.ext
-      // We need to prepend base url or handle it in CustomAvatar
-      // Let's store relative path, but CustomAvatar might need full URL unless logic changes.
-      // Usually better to store full URL or consistent relative.
-      // Let's prepend BaseURL here to keep it simple for now, OR ensure CustomAvatar handles it.
-      // AuthService.baseUrl might be http://10.0.2.2:5001 or localhost.
-      // For mobile emulator, localhost won't work for image loading if backend returns relative.
-      // Let's assume CustomAvatar handles it or we construct it.
-
-      // Actually, let's just save valid string.
-      // Ideally backend returns full URL, but we returned relative.
-
       await _userService.updateProfile(avatarUrl: imageUrl);
 
-      // 3. Refresh Auth Provider to update UI (if it holds avatar) -> AuthProvider currently mostly holds simple data.
-      // We might need to reload user profile or update locally.
-      // For now, let's just trigger a rebuild or notify user.
-
+      // 3. Save avatar URL locally and refresh AuthProvider
       if (mounted) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_avatar', imageUrl);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cập nhật ảnh đại diện thành công!')),
         );
-        // Force checkAuthStatus to refresh info if it fetched profile, but currently it reads prefs.
-        // Ideally we should fetch latest profile.
         context.read<AuthProvider>().checkAuthStatus();
       }
     } catch (e) {
@@ -156,7 +141,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? (authProvider.userEmail ?? '')
         : (_profileData?['email'] ?? _profileData?['Email'] ?? '');
     String? avatarUrl = _isSelf
-        ? null
+        ? authProvider.userAvatar
         : (_profileData?['avatarUrl'] ?? _profileData?['AvatarUrl']);
 
     if (avatarUrl != null && !avatarUrl.startsWith('http')) {
@@ -182,26 +167,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Stack(
                 children: [
                   // Avatar
-                  if (_isSelf)
-                    FutureBuilder<Map<String, dynamic>?>(
-                      future: _userService.searchUserByEmail(
-                        authProvider.userEmail ?? '',
-                      ), // Fetch self profile to get avatar
-                      builder: (context, snapshot) {
-                        var selfAvatar = snapshot.data?['avatarUrl'];
-                        if (selfAvatar != null &&
-                            !selfAvatar.startsWith('http')) {
-                          selfAvatar = '${AuthService.baseUrl}$selfAvatar';
-                        }
-                        return CustomAvatar(
-                          imageUrl: selfAvatar,
-                          name: name,
-                          size: 120,
-                        );
-                      },
-                    )
-                  else
-                    CustomAvatar(imageUrl: avatarUrl, name: name, size: 120),
+                  CustomAvatar(imageUrl: avatarUrl, name: name, size: 120),
 
                   // Edit Button (Only for self)
                   if (_isSelf)
