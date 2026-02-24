@@ -262,9 +262,9 @@ class AuthProvider with ChangeNotifier {
         await prefs.setString('user_email', _userEmail!);
       }
 
-      // Fetch latest profile from User.API (overrides JWT name with DB name)
+      // Fetch latest profile from User.API (non-blocking — don't block login)
       if (_userId != null) {
-        await _fetchLatestProfile(_userId!, prefs);
+        _fetchLatestProfile(_userId!, prefs).then((_) => notifyListeners());
       }
 
       notifyListeners();
