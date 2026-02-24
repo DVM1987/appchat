@@ -220,7 +220,7 @@ services:
       - certbot_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
     depends_on:
-      - gateway
+      - api_gateway
       - chat_service
       - user_service
       - presence_service
