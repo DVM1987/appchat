@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -244,10 +247,46 @@ class AuthProvider with ChangeNotifier {
         await prefs.setString('user_email', _userEmail!);
       }
 
+      // Fetch latest profile from User.API (overrides JWT name with DB name)
+      if (_userId != null) {
+        await _fetchLatestProfile(_userId!, prefs);
+      }
+
       notifyListeners();
       return isNewUser;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Fetch latest profile from User.API to get updated name/avatar
+  Future<void> _fetchLatestProfile(
+    String userId,
+    SharedPreferences prefs,
+  ) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('${AppConfig.userApiBaseUrl}/users/identity/$userId'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $_token',
+            },
+          )
+          .timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final profile = jsonDecode(response.body);
+        final latestName = profile['fullName'] as String?;
+        if (latestName != null && latestName.isNotEmpty) {
+          _userName = latestName;
+          await prefs.setString('user_name', latestName);
+          AppConfig.log('[Auth] Updated name from profile: $latestName');
+        }
+      }
+    } catch (e) {
+      AppConfig.log('[Auth] Failed to fetch profile: $e');
+      // Non-blocking — use JWT name as fallback
     }
   }
 }
