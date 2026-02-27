@@ -76,12 +76,19 @@
 	<key>FirebaseAppDelegateProxyEnabled</key>
 	<false/>
 
-	<!-- Allow HTTP endpoints (dev/prod gateway without HTTPS). 
-	     TODO: tighten by adding NSExceptionDomains for specific hosts when HTTPS is ready. -->
+	<!-- Allow HTTP to VPS only. Remove when HTTPS is configured. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>139.180.217.83</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+			</dict>
+		</dict>
 	</dict>
 </dict>
 </plist>

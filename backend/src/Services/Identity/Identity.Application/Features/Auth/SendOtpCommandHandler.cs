@@ -21,6 +21,13 @@ namespace Identity.Application.Features.Auth
 
             Console.WriteLine($"[OTP] Sending OTP to {phone} via Twilio Verify");
 
+            // Apple Review test account — skip Twilio, OTP is always 123456
+            if (phone == "+10000000000")
+            {
+                Console.WriteLine("[OTP] Test account detected, skipping Twilio");
+                return new SendOtpResponse("OTP sent successfully", 300);
+            }
+
             // Send OTP via Twilio Verify SMS
             await _smsVerifyService.SendOtpAsync(phone);
 

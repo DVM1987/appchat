@@ -34,8 +34,17 @@ namespace Identity.Application.Features.Auth
             if (!phone.StartsWith("+"))
                 phone = "+84" + phone.TrimStart('0');
 
-            // 1. Verify OTP via Twilio Verify
-            var isValid = await _smsVerifyService.VerifyOtpAsync(phone, request.OtpCode);
+            // 1. Verify OTP — Apple Review test account bypass
+            bool isValid;
+            if (phone == "+10000000000" && request.OtpCode == "123456")
+            {
+                isValid = true; // Apple reviewer test account
+            }
+            else
+            {
+                isValid = await _smsVerifyService.VerifyOtpAsync(phone, request.OtpCode);
+            }
+
             if (!isValid)
             {
                 throw new Exception("Invalid or expired OTP");
