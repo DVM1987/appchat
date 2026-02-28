@@ -21,7 +21,7 @@ builder.Services.AddDbContext<Identity.Infrastructure.Persistence.IdentityDbCont
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.ITokenService, Identity.Infrastructure.Services.TokenService>();
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.IUserRepository, Identity.Infrastructure.Repositories.UserRepository>();
 builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient<Identity.Application.Common.Interfaces.ISmsVerifyService, StringeeVerifyService>();
+builder.Services.AddHttpClient<Identity.Application.Common.Interfaces.ISmsVerifyService, SpeedSmsVerifyService>();
 builder.Services.AddScoped<BuildingBlocks.Core.IUnitOfWork, Identity.Infrastructure.Services.UnitOfWork>();
 
 

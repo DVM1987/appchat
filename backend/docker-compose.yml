@@ -120,9 +120,7 @@ services:
       - JwtSettings__Audience=ChatAppUsers
       - JwtSettings__ExpiryMinutes=60
       - UserServiceUrl=http://user_service:8080
-      - Stringee__ApiKeySid=${STRINGEE_API_KEY_SID}
-      - Stringee__ApiKeySecret=${STRINGEE_API_KEY_SECRET}
-      - Stringee__BrandName=${STRINGEE_BRAND_NAME:-MChat}
+      - SpeedSms__AccessToken=${SPEEDSMS_ACCESS_TOKEN}
     networks:
       - chat_network
     depends_on:

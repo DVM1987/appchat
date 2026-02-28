@@ -20,7 +20,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: STRINGEE_API_KEY_SID,STRINGEE_API_KEY_SECRET,STRINGEE_BRAND_NAME
+          envs: SPEEDSMS_ACCESS_TOKEN
           script: |
             cd /opt/appchat/backend
             
@@ -39,9 +39,7 @@ jobs:
             
             # Write .env file with secrets (never committed to git)
             cat > .env << EOF
-            STRINGEE_API_KEY_SID=${STRINGEE_API_KEY_SID}
-            STRINGEE_API_KEY_SECRET=${STRINGEE_API_KEY_SECRET}
-            STRINGEE_BRAND_NAME=${STRINGEE_BRAND_NAME}
+            SPEEDSMS_ACCESS_TOKEN=${SPEEDSMS_ACCESS_TOKEN}
             EOF
             
             # Rebuild and restart services (DO NOT use 'down' - it destroys database volumes!)
@@ -56,6 +54,4 @@ jobs:
             docker ps --format "table {{.Names}}\t{{.Status}}"
             echo "=== Deploy Complete ==="
         env:
-          STRINGEE_API_KEY_SID: ${{ secrets.STRINGEE_API_KEY_SID }}
-          STRINGEE_API_KEY_SECRET: ${{ secrets.STRINGEE_API_KEY_SECRET }}
-          STRINGEE_BRAND_NAME: ${{ secrets.STRINGEE_BRAND_NAME }}
+          SPEEDSMS_ACCESS_TOKEN: ${{ secrets.SPEEDSMS_ACCESS_TOKEN }}
