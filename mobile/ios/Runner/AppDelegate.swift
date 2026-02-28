@@ -14,18 +14,27 @@ import FirebaseAuth
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // Forward APNs token to Firebase Auth for silent push verification
+  // Pass APNs token to Firebase Auth for silent push verification
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // Set token for Firebase Auth (phone verification)
-    Auth.auth().setAPNSToken(deviceToken, type: .prod)
-    // Also pass to plugins (FCM etc.)
+    let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
+    NSLog("[APNs] Got device token: \(tokenString.prefix(10))...")
+    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
-  // Handle reCAPTCHA/URL callbacks
+  // Log APNs registration failure
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    NSLog("[APNs] FAILED to register: \(error.localizedDescription)")
+    super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+
+  // Handle reCAPTCHA redirect URL
   override func application(
     _ app: UIApplication,
     open url: URL,
@@ -37,7 +46,7 @@ import FirebaseAuth
     return super.application(app, open: url, options: options)
   }
 
-  // Handle silent push notification for phone auth verification
+  // Handle silent push notification for phone auth
   override func application(
     _ application: UIApplication,
     didReceiveRemoteNotification notification: [AnyHashable: Any],
