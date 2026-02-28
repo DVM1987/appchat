@@ -80,9 +80,9 @@
 		<string>remote-notification</string>
 	</array>
 
-	<!-- Firebase - enable auto APNs swizzling for Phone Auth -->
+	<!-- Firebase - disable auto swizzling, AppDelegate handles APNs manually -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
+	<false/>
 
 	<!-- Allow HTTP to VPS only. Remove when HTTPS is configured. -->
 	<key>NSAppTransportSecurity</key>
