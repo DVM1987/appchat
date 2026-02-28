@@ -55,10 +55,9 @@ namespace Identity.API.Services
 
                 var payload = new
                 {
-                    to = localPhone,
+                    to = new[] { localPhone },
                     content = smsContent,
-                    sms_type = 2,   // Type 2 = đầu số ngẫu nhiên (không cần Brand Name)
-                    sender = ""     // Không cần sender cho type 2
+                    sms_type = 2   // Type 2 = đầu số ngẫu nhiên (không cần sender)
                 };
 
                 Console.WriteLine($"[SpeedSMS] Sending SMS to {localPhone}");
