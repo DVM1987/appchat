@@ -120,9 +120,9 @@ services:
       - JwtSettings__Audience=ChatAppUsers
       - JwtSettings__ExpiryMinutes=60
       - UserServiceUrl=http://user_service:8080
-      - Esms__ApiKey=${ESMS_API_KEY}
-      - Esms__SecretKey=${ESMS_SECRET_KEY}
-      - Esms__BrandName=${ESMS_BRAND_NAME:-}
+      - Stringee__ApiKeySid=${STRINGEE_API_KEY_SID}
+      - Stringee__ApiKeySecret=${STRINGEE_API_KEY_SECRET}
+      - Stringee__BrandName=${STRINGEE_BRAND_NAME:-MChat}
     networks:
       - chat_network
     depends_on:
