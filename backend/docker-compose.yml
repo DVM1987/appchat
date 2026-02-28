@@ -122,7 +122,7 @@ services:
       - UserServiceUrl=http://user_service:8080
       - Firebase__CredentialPath=/app/firebase-admin-sdk.json
     volumes:
-      - ./src/Services/Chat/Chat.API/firebase-admin-sdk.json:/app/firebase-admin-sdk.json:ro
+      - /opt/appchat/firebase-admin-sdk.json:/app/firebase-admin-sdk.json:ro
     networks:
       - chat_network
     depends_on:
@@ -154,7 +154,7 @@ services:
       - "5003:8080"
     volumes:
       - chat_uploads:/app/wwwroot/chat-uploads
-      - ./src/Services/Chat/Chat.API/firebase-admin-sdk.json:/app/firebase-admin-sdk.json:ro
+      - /opt/appchat/firebase-admin-sdk.json:/app/firebase-admin-sdk.json:ro
     networks:
       - chat_network
     depends_on:
