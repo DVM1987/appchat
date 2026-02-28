@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/call_log_model.dart' as call_log;
 import '../../../data/models/call_log_model.dart' hide CallType;
 import '../../../data/services/agora_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -105,8 +106,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       otherUserName: widget.calleeName,
       otherUserAvatar: widget.calleeAvatar,
       callType: widget.callType == CallType.video
-          ? CallType.video as dynamic
-          : CallType.audio as dynamic,
+          ? call_log.CallType.video
+          : call_log.CallType.audio,
       direction: CallDirection.outgoing,
       status: CallStatus.missed, // Default missed, updated if connected
       startedAt: DateTime.now(),
