@@ -279,11 +279,18 @@ class AuthProvider with ChangeNotifier {
       );
     } catch (e, stack) {
       AppConfig.log('[Firebase] EXCEPTION in verifyPhoneNumber: $e');
+      AppConfig.log('[Firebase] Type: ${e.runtimeType}');
       AppConfig.log('[Firebase] Stack: $stack');
       _isOtpSending = false;
       notifyListeners();
       if (!completer.isCompleted) {
-        completer.completeError(e);
+        String errorMsg;
+        if (e is fb.FirebaseAuthException) {
+          errorMsg = '[${e.code}] ${e.message}';
+        } else {
+          errorMsg = '[${e.runtimeType}] $e';
+        }
+        completer.completeError(Exception(errorMsg));
       }
     }
 
