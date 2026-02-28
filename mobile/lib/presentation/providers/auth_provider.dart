@@ -249,15 +249,16 @@ class AuthProvider with ChangeNotifier {
           AppConfig.log('[Firebase] Auto-verification completed');
         },
         verificationFailed: (fb.FirebaseAuthException e) {
-          // ignore: avoid_print
-          print(
+          AppConfig.log(
             '[Firebase] Verification FAILED code=${e.code} message=${e.message} plugin=${e.plugin}',
           );
           _isOtpSending = false;
           notifyListeners();
           if (!completer.isCompleted) {
             completer.completeError(
-              Exception(e.message ?? 'Không thể gửi mã xác thực'),
+              Exception(
+                '[${e.code}] ${e.message ?? 'Không thể gửi mã xác thực'}',
+              ),
             );
           }
         },
