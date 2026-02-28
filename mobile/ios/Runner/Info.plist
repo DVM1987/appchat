@@ -63,6 +63,13 @@
 			<key>CFBundleURLName</key>
 			<string>com.appchat.deeplink</string>
 		</dict>
+		<!-- Firebase Phone Auth reCAPTCHA fallback -->
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app-1-351965128781-ios-3f06a5ed06fb5e2b065404</string>
+			</array>
+		</dict>
 	</array>
 
 	<!-- Background Modes for Push Notifications -->
@@ -72,9 +79,9 @@
 		<string>remote-notification</string>
 	</array>
 
-	<!-- Firebase -->
+	<!-- Firebase - enable auto APNs swizzling for Phone Auth -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
-	<false/>
+	<true/>
 
 	<!-- Allow HTTP to VPS only. Remove when HTTPS is configured. -->
 	<key>NSAppTransportSecurity</key>
