@@ -122,6 +122,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void _setupCallListeners() {
     // Listen for call accepted → start Agora
     _chatService.onCallAccepted = () {
+      AppConfig.log('[Call] Received CallAccepted signal');
       if (mounted && _callState == CallState.ringing) {
         setState(() => _callState = CallState.connected);
         _connectedAt = DateTime.now();
@@ -183,25 +184,36 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   Future<void> _initAndJoinAgora() async {
     try {
       final isVideo = widget.callType == CallType.video;
+      AppConfig.log('[Call] _initAndJoinAgora: isVideo=$isVideo');
 
       // Request permissions
       final granted = await _agoraService.requestPermissions(isVideo: isVideo);
       if (!granted) {
         _showCallMessage('Cần cấp quyền micro${isVideo ? ' và camera' : ''}');
+        AppConfig.log('[Call] Permission denied');
         return;
       }
+      AppConfig.log('[Call] Permissions granted');
 
       // Setup Agora callbacks BEFORE initializing
       _agoraService.onUserJoined = (int remoteUid) {
+        AppConfig.log('[Call] Remote user joined: $remoteUid');
         if (mounted) {
           setState(() => _remoteUid = remoteUid);
         }
       };
 
       _agoraService.onUserOffline = (int remoteUid) {
+        AppConfig.log('[Call] Remote user left: $remoteUid');
         if (mounted) {
           setState(() => _remoteUid = null);
         }
+      };
+
+      _agoraService.onJoinChannelSuccess = (connection, elapsed) {
+        AppConfig.log(
+          '[Call] Join channel success: channel=${connection.channelId}, uid=${connection.localUid}, elapsed=$elapsed ms',
+        );
       };
 
       _agoraService.onError = (err, msg) {
@@ -209,7 +221,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       };
 
       // Initialize engine
+      AppConfig.log('[Call] Initializing Agora engine...');
       await _agoraService.initialize(isVideo: isVideo);
+      AppConfig.log('[Call] Agora engine initialized');
 
       // Generate channel name
       final myUserId = await AuthService.getUserId() ?? '';
@@ -218,6 +232,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
         widget.otherUserId,
       );
       final uid = AgoraService.generateUid(myUserId);
+      AppConfig.log(
+        '[Call] Channel=$channelName, UID=$uid, myUserId=$myUserId, otherUserId=${widget.otherUserId}',
+      );
 
       // Store channel name
       if (mounted) {
@@ -225,35 +242,49 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       }
 
       // Try to get token from backend first, fallback to empty (testing mode)
-      String agoraToken = '';
+      String? agoraToken;
       try {
-        final backendToken = await _agoraService.getToken(channelName);
-        if (backendToken != null && backendToken.isNotEmpty) {
-          agoraToken = backendToken;
-        }
-      } catch (_) {}
+        agoraToken = await _agoraService.getToken(channelName);
+        AppConfig.log(
+          '[Call] Backend token: ${agoraToken != null ? "received" : "null (testing mode)"}',
+        );
+      } catch (e) {
+        AppConfig.log('[Call] Token fetch error (will use testing mode): $e');
+      }
 
       // Join channel
+      AppConfig.log(
+        '[Call] Joining channel $channelName with uid=$uid, hasToken=${agoraToken != null}',
+      );
       await _agoraService.joinChannel(
         channelName: channelName,
         uid: uid,
-        token: agoraToken.isNotEmpty ? agoraToken : null,
+        token: agoraToken,
       );
+      AppConfig.log('[Call] joinChannel called successfully');
 
       // Start local video preview if needed
       if (isVideo) {
         await _agoraService.engine?.startPreview();
+        AppConfig.log('[Call] Video preview started');
       }
 
       if (mounted) {
         setState(() => _agoraJoined = true);
       }
-    } catch (e) {
+      AppConfig.log('[Call] _initAndJoinAgora completed successfully');
+    } catch (e, stackTrace) {
+      AppConfig.log('[Call] _initAndJoinAgora ERROR: $e');
+      AppConfig.log('[Call] StackTrace: $stackTrace');
       _showCallMessage('Lỗi kết nối: $e');
     }
   }
 
   void _initiateCall() {
+    AppConfig.log(
+      '[Call] Initiating call to ${widget.otherUserId}, type=${widget.callType == CallType.video ? "video" : "audio"}',
+    );
+    AppConfig.log('[Call] ChatHub state: ${_chatService.chatHubState}');
     _chatService.initiateCall(
       calleeId: widget.otherUserId,
       callType: widget.callType == CallType.video ? 'video' : 'audio',
@@ -287,6 +318,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   }
 
   void _acceptCall() async {
+    AppConfig.log('[Call] Accepting call from ${widget.otherUserId}');
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _connectedAt = DateTime.now();

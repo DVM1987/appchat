@@ -65,6 +65,9 @@ class ChatService with WidgetsBindingObserver {
   HubConnection? _userHubConnection;
   Timer? _heartbeatTimer;
 
+  /// Expose ChatHub connection state for debugging
+  String get chatHubState => _hubConnection?.state?.toString() ?? 'null';
+
   // Stream Controllers
   final _friendRequestController = StreamController<void>.broadcast();
 

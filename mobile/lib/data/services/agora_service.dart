@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
@@ -129,20 +130,30 @@ class AgoraService {
       final authToken = await AuthService.getToken();
       if (authToken == null) return null;
 
-      final response = await http.get(
-        Uri.parse(
-          '${AppConfig.chatApiBaseUrl}/agora/token?channelName=$channelName',
-        ),
-        headers: {'Authorization': 'Bearer $authToken'},
-      );
+      final response = await http
+          .get(
+            Uri.parse(
+              '${AppConfig.chatApiBaseUrl}/agora/token?channelName=$channelName',
+            ),
+            headers: {'Authorization': 'Bearer $authToken'},
+          )
+          .timeout(const Duration(seconds: 5)); // Don't block call for too long
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        AppConfig.log('[Agora] Token response: $data');
         return data['token'] as String?;
       } else {
-        AppConfig.log('[Agora] Failed to get token: ${response.statusCode}');
+        AppConfig.log(
+          '[Agora] Failed to get token: ${response.statusCode} ${response.body}',
+        );
         return null;
       }
+    } on TimeoutException {
+      AppConfig.log(
+        '[Agora] Token request timed out (5s) — using testing mode',
+      );
+      return null;
     } catch (e) {
       AppConfig.log('[Agora] Error getting token: $e');
       return null;
