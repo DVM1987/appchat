@@ -160,71 +160,43 @@ class AuthService {
     }
   }
 
-  // ─── Phone OTP Auth ──────────────────────────────────────
+  // ─── Firebase Phone Auth ──────────────────────────────────
 
-  // Send OTP to phone number
-  Future<Map<String, dynamic>> sendOtp({required String phoneNumber}) async {
-    try {
-      AppConfig.log(
-        '[Auth] sendOtp: $baseUrl/api/v1/auth/send-otp phone=$phoneNumber',
-      );
-      final response = await http
-          .post(
-            Uri.parse('$baseUrl/api/v1/auth/send-otp'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'phoneNumber': phoneNumber}),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      AppConfig.log('[Auth] sendOtp response: ${response.statusCode}');
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body) as Map<String, dynamic>;
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Không thể gửi OTP');
-      }
-    } catch (e) {
-      AppConfig.log('[Auth] sendOtp error: $e');
-      if (e is Exception) rethrow;
-      throw Exception('Không thể kết nối đến server.');
-    }
-  }
-
-  // Verify OTP and get token
-  Future<Map<String, dynamic>> verifyOtp({
-    required String phoneNumber,
-    required String otpCode,
+  /// Send Firebase ID token to backend for verification + app JWT issuance
+  Future<Map<String, dynamic>> verifyFirebaseToken({
+    required String idToken,
     String? fullName,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'phoneNumber': phoneNumber,
-        'otpCode': otpCode,
-      };
+      final body = <String, dynamic>{'idToken': idToken};
       if (fullName != null && fullName.isNotEmpty) {
         body['fullName'] = fullName;
       }
 
-      AppConfig.log('[Auth] verifyOtp: $baseUrl/api/v1/auth/verify-otp');
+      AppConfig.log(
+        '[Auth] verifyFirebaseToken: $baseUrl/api/v1/auth/verify-firebase-token',
+      );
       final response = await http
           .post(
-            Uri.parse('$baseUrl/api/v1/auth/verify-otp'),
+            Uri.parse('$baseUrl/api/v1/auth/verify-firebase-token'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )
           .timeout(const Duration(seconds: 15));
 
-      AppConfig.log('[Auth] verifyOtp response: ${response.statusCode}');
+      AppConfig.log(
+        '[Auth] verifyFirebaseToken response: ${response.statusCode}',
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 401) {
         final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Mã OTP không hợp lệ');
+        throw Exception(error['message'] ?? 'Token không hợp lệ');
       } else {
         throw Exception('Lỗi server. Vui lòng thử lại.');
       }
     } catch (e) {
-      AppConfig.log('[Auth] verifyOtp error: $e');
+      AppConfig.log('[Auth] verifyFirebaseToken error: $e');
       if (e is Exception) rethrow;
       throw Exception('Không thể kết nối đến server.');
     }

@@ -120,7 +120,9 @@ services:
       - JwtSettings__Audience=ChatAppUsers
       - JwtSettings__ExpiryMinutes=60
       - UserServiceUrl=http://user_service:8080
-      - SpeedSms__AccessToken=${SPEEDSMS_ACCESS_TOKEN}
+      - Firebase__CredentialPath=/app/firebase-admin-sdk.json
+    volumes:
+      - ./src/Services/Chat/Chat.API/firebase-admin-sdk.json:/app/firebase-admin-sdk.json:ro
     networks:
       - chat_network
     depends_on:

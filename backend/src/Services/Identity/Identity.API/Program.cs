@@ -2,6 +2,8 @@ using Identity.API.Extensions;
 using Identity.API.Services;
 using Microsoft.EntityFrameworkCore;
 using MassTransit;
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,31 @@ builder.Services.AddDbContext<Identity.Infrastructure.Persistence.IdentityDbCont
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.ITokenService, Identity.Infrastructure.Services.TokenService>();
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.IUserRepository, Identity.Infrastructure.Repositories.UserRepository>();
 builder.Services.AddMemoryCache();
-builder.Services.AddHttpClient<Identity.Application.Common.Interfaces.ISmsVerifyService, SpeedSmsVerifyService>();
+
+// Firebase Admin SDK initialization
+var firebaseCredPath = builder.Configuration["Firebase:CredentialPath"] ?? "firebase-admin-sdk.json";
+if (File.Exists(firebaseCredPath))
+{
+    if (FirebaseApp.DefaultInstance == null)
+    {
+        FirebaseApp.Create(new AppOptions
+        {
+            Credential = GoogleCredential.FromFile(firebaseCredPath),
+        });
+    }
+    Console.WriteLine($"[Firebase] Admin SDK initialized from {firebaseCredPath}");
+}
+else
+{
+    Console.WriteLine($"[Firebase] WARNING: credential file not found at {firebaseCredPath}");
+}
+
+// Firebase Auth Service (replaces SMS verify service)
+builder.Services.AddSingleton<Identity.Application.Common.Interfaces.IFirebaseAuthService, FirebaseAuthService>();
+
+// Keep ISmsVerifyService as no-op for backward compatibility (Apple test account uses old endpoints)
+builder.Services.AddSingleton<Identity.Application.Common.Interfaces.ISmsVerifyService, NoOpSmsVerifyService>();
+
 builder.Services.AddScoped<BuildingBlocks.Core.IUnitOfWork, Identity.Infrastructure.Services.UnitOfWork>();
 
 

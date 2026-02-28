@@ -77,6 +77,25 @@ namespace Identity.API.Controllers
             }
         }
 
+        [HttpPost("verify-firebase-token")]
+        public async Task<IActionResult> VerifyFirebaseToken([FromBody] VerifyFirebaseTokenCommand command)
+        {
+            try
+            {
+                var response = await _mediator.Send(command);
+                return Ok(response);
+            }
+            catch (Exception ex) when (ex.Message.Contains("Invalid Firebase token") || ex.Message.Contains("does not contain"))
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[VerifyFirebaseToken] Error: {ex.Message}");
+                return StatusCode(500, new { message = "Internal Server Error" });
+            }
+        }
+
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenCommand command)
         {

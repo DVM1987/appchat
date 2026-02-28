@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
@@ -26,6 +28,14 @@ class AuthProvider with ChangeNotifier {
   String? get userName => _userName;
   String? get userEmail => _userEmail;
   String? get userAvatar => _userAvatar;
+
+  // ─── Firebase Phone Auth state ──────────────────────────
+  String? _verificationId;
+  int? _resendToken;
+  bool _isOtpSending = false;
+
+  String? get verificationId => _verificationId;
+  bool get isOtpSending => _isOtpSending;
 
   // Check if user is already logged in (on app start)
   Future<void> checkAuthStatus() async {
@@ -178,6 +188,11 @@ class AuthProvider with ChangeNotifier {
   Future<void> logout() async {
     await ChatService().disconnect();
 
+    // Sign out of Firebase too
+    try {
+      await fb.FirebaseAuth.instance.signOut();
+    } catch (_) {}
+
     _token = null;
     _userId = null;
     _userName = null;
@@ -185,6 +200,8 @@ class AuthProvider with ChangeNotifier {
     _userAvatar = null;
     _tokenExpiresIn = null;
     _isAuthenticated = false;
+    _verificationId = null;
+    _resendToken = null;
 
     // Clear SharedPreferences
     final prefs = await SharedPreferences.getInstance();
@@ -208,27 +225,89 @@ class AuthProvider with ChangeNotifier {
   final List<VoidCallback> _logoutCallbacks = [];
   void onLogout(VoidCallback callback) => _logoutCallbacks.add(callback);
 
-  // ─── Phone OTP Auth ──────────────────────────────────────
+  // ─── Firebase Phone Auth ──────────────────────────────────
 
-  // Send OTP to phone number
+  /// Send OTP via Firebase Phone Auth
+  /// Completer resolves when codeSent callback fires (or error)
   Future<void> sendOtp({required String phoneNumber}) async {
-    await _authService.sendOtp(phoneNumber: phoneNumber);
+    _isOtpSending = true;
+    notifyListeners();
+
+    final completer = Completer<void>();
+
+    await fb.FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: phoneNumber,
+      forceResendingToken: _resendToken,
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: (fb.PhoneAuthCredential credential) async {
+        // Auto-verification on Android — sign in automatically
+        AppConfig.log('[Firebase] Auto-verification completed');
+      },
+      verificationFailed: (fb.FirebaseAuthException e) {
+        AppConfig.log('[Firebase] Verification failed: ${e.message}');
+        _isOtpSending = false;
+        notifyListeners();
+        if (!completer.isCompleted) {
+          completer.completeError(
+            Exception(e.message ?? 'Không thể gửi mã xác thực'),
+          );
+        }
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        AppConfig.log('[Firebase] Code sent, verificationId=$verificationId');
+        _verificationId = verificationId;
+        _resendToken = resendToken;
+        _isOtpSending = false;
+        notifyListeners();
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        AppConfig.log('[Firebase] Auto retrieval timeout');
+        _verificationId = verificationId;
+      },
+    );
+
+    return completer.future;
   }
 
-  // Verify OTP and login
+  /// Verify OTP using Firebase, then exchange Firebase ID token for app JWT
   Future<bool> verifyOtp({
     required String phoneNumber,
     required String otpCode,
     String? fullName,
   }) async {
     try {
-      final response = await _authService.verifyOtp(
-        phoneNumber: phoneNumber,
-        otpCode: otpCode,
+      if (_verificationId == null) {
+        throw Exception('Chưa có mã xác thực. Vui lòng gửi lại OTP.');
+      }
+
+      // 1. Create credential from verification ID + OTP code
+      final credential = fb.PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: otpCode,
+      );
+
+      // 2. Sign in with Firebase
+      final userCredential = await fb.FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      // 3. Get Firebase ID token
+      final idToken = await userCredential.user?.getIdToken();
+      if (idToken == null) {
+        throw Exception('Không thể lấy token từ Firebase');
+      }
+
+      AppConfig.log('[Firebase] Got ID token, sending to backend...');
+
+      // 4. Send Firebase ID token to backend for app JWT
+      final response = await _authService.verifyFirebaseToken(
+        idToken: idToken,
         fullName: fullName,
       );
 
-      // Extract data
+      // 5. Process backend response (same as before)
       _token = response['token'] as String;
       _tokenExpiresIn = response['expiresIn'] as int?;
       _isAuthenticated = true;
