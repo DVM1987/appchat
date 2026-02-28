@@ -20,7 +20,8 @@ builder.Services.AddDbContext<Identity.Infrastructure.Persistence.IdentityDbCont
 // Dependency Injection
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.ITokenService, Identity.Infrastructure.Services.TokenService>();
 builder.Services.AddScoped<Identity.Application.Common.Interfaces.IUserRepository, Identity.Infrastructure.Repositories.UserRepository>();
-builder.Services.AddScoped<Identity.Application.Common.Interfaces.ISmsVerifyService, TwilioVerifyService>();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<Identity.Application.Common.Interfaces.ISmsVerifyService, EsmsVerifyService>();
 builder.Services.AddScoped<BuildingBlocks.Core.IUnitOfWork, Identity.Infrastructure.Services.UnitOfWork>();
 
 

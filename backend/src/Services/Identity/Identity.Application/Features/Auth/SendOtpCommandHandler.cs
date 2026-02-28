@@ -19,16 +19,16 @@ namespace Identity.Application.Features.Auth
             if (!phone.StartsWith("+"))
                 phone = "+84" + phone.TrimStart('0');
 
-            Console.WriteLine($"[OTP] Sending OTP to {phone} via Twilio Verify");
+            Console.WriteLine($"[OTP] Sending OTP to {phone} via eSMS");
 
-            // Apple Review test account — skip Twilio, OTP is always 123456
+            // Apple Review test account — skip eSMS, OTP is always 123456
             if (phone == "+10000000000")
             {
-                Console.WriteLine("[OTP] Test account detected, skipping Twilio");
+                Console.WriteLine("[OTP] Test account detected, skipping eSMS");
                 return new SendOtpResponse("OTP sent successfully", 300);
             }
 
-            // Send OTP via Twilio Verify SMS
+            // Send OTP via eSMS SMS
             await _smsVerifyService.SendOtpAsync(phone);
 
             return new SendOtpResponse("OTP sent successfully", 300);

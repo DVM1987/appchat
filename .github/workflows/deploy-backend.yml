@@ -20,7 +20,7 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: TWILIO_ACCOUNT_SID,TWILIO_AUTH_TOKEN,TWILIO_VERIFY_SERVICE_SID
+          envs: ESMS_API_KEY,ESMS_SECRET_KEY,ESMS_BRAND_NAME
           script: |
             cd /opt/appchat/backend
             
@@ -39,9 +39,9 @@ jobs:
             
             # Write .env file with secrets (never committed to git)
             cat > .env << EOF
-            TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
-            TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
-            TWILIO_VERIFY_SERVICE_SID=${TWILIO_VERIFY_SERVICE_SID}
+            ESMS_API_KEY=${ESMS_API_KEY}
+            ESMS_SECRET_KEY=${ESMS_SECRET_KEY}
+            ESMS_BRAND_NAME=${ESMS_BRAND_NAME}
             EOF
             
             # Rebuild and restart services (DO NOT use 'down' - it destroys database volumes!)
@@ -56,6 +56,7 @@ jobs:
             docker ps --format "table {{.Names}}\t{{.Status}}"
             echo "=== Deploy Complete ==="
         env:
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_VERIFY_SERVICE_SID: ${{ secrets.TWILIO_VERIFY_SERVICE_SID }}
+          ESMS_API_KEY: ${{ secrets.ESMS_API_KEY }}
+          ESMS_SECRET_KEY: ${{ secrets.ESMS_SECRET_KEY }}
+          ESMS_BRAND_NAME: ${{ secrets.ESMS_BRAND_NAME }}
+
