@@ -144,20 +144,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     };
 
     // Navigate to conversation when notification tapped
-    pushService.onNavigateToConversation = (conversationId) {
-      if (!mounted) return;
-      AppConfig.log('[Push] Navigate to conversation: $conversationId');
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            chatId: conversationId,
-            otherUserName: 'Chat',
-            isGroup: false, // Will be refined when ChatScreen loads
-          ),
-        ),
-      );
-    };
+    pushService.onNavigateToConversation =
+        (
+          conversationId, {
+          String? senderName,
+          bool isGroup = false,
+          String? conversationName,
+        }) {
+          if (!mounted) return;
+          AppConfig.log(
+            '[Push] Navigate to conversation: $conversationId, sender: $senderName, isGroup: $isGroup',
+          );
+          // For group: show group name; for 1-1: show sender name
+          final displayName = isGroup
+              ? (conversationName ?? senderName ?? 'Nhóm chat')
+              : (senderName ?? 'Chat');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                chatId: conversationId,
+                otherUserName: displayName,
+                isGroup: isGroup,
+              ),
+            ),
+          );
+        };
 
     // Navigate to friends tab when friend request notification tapped
     pushService.onNavigateToFriends = () {

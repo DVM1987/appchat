@@ -323,7 +323,15 @@ class PushNotificationService {
       case 'new_message':
         final conversationId = data['conversationId'];
         if (conversationId != null) {
-          onNavigateToConversation?.call(conversationId);
+          final senderName = data['senderName'] as String?;
+          final isGroup = data['isGroup'] == 'true';
+          final conversationName = data['conversationName'] as String?;
+          onNavigateToConversation?.call(
+            conversationId,
+            senderName: senderName,
+            isGroup: isGroup,
+            conversationName: conversationName,
+          );
         }
         break;
       case 'incoming_call':
@@ -439,7 +447,13 @@ class PushNotificationService {
   // UI CALLBACKS
   // ════════════════════════════════════════════
   void Function(NotificationData notification)? onForegroundNotification;
-  void Function(String conversationId)? onNavigateToConversation;
+  void Function(
+    String conversationId, {
+    String? senderName,
+    bool isGroup,
+    String? conversationName,
+  })?
+  onNavigateToConversation;
   void Function(String callerId, String callerName, String callType)?
   onIncomingCallNotification;
   VoidCallback? onNavigateToFriends;
