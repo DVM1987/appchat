@@ -235,39 +235,56 @@ class AuthProvider with ChangeNotifier {
 
     final completer = Completer<void>();
 
-    await fb.FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: phoneNumber,
-      forceResendingToken: _resendToken,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: (fb.PhoneAuthCredential credential) async {
-        // Auto-verification on Android — sign in automatically
-        AppConfig.log('[Firebase] Auto-verification completed');
-      },
-      verificationFailed: (fb.FirebaseAuthException e) {
-        AppConfig.log('[Firebase] Verification failed: ${e.message}');
-        _isOtpSending = false;
-        notifyListeners();
-        if (!completer.isCompleted) {
-          completer.completeError(
-            Exception(e.message ?? 'Không thể gửi mã xác thực'),
+    try {
+      // ignore: avoid_print
+      print(
+        '[Firebase] Calling verifyPhoneNumber for: "$phoneNumber" (len=${phoneNumber.length})',
+      );
+      await fb.FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        forceResendingToken: _resendToken,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (fb.PhoneAuthCredential credential) async {
+          // Auto-verification on Android — sign in automatically
+          AppConfig.log('[Firebase] Auto-verification completed');
+        },
+        verificationFailed: (fb.FirebaseAuthException e) {
+          // ignore: avoid_print
+          print(
+            '[Firebase] Verification FAILED code=${e.code} message=${e.message} plugin=${e.plugin}',
           );
-        }
-      },
-      codeSent: (String verificationId, int? resendToken) {
-        AppConfig.log('[Firebase] Code sent, verificationId=$verificationId');
-        _verificationId = verificationId;
-        _resendToken = resendToken;
-        _isOtpSending = false;
-        notifyListeners();
-        if (!completer.isCompleted) {
-          completer.complete();
-        }
-      },
-      codeAutoRetrievalTimeout: (String verificationId) {
-        AppConfig.log('[Firebase] Auto retrieval timeout');
-        _verificationId = verificationId;
-      },
-    );
+          _isOtpSending = false;
+          notifyListeners();
+          if (!completer.isCompleted) {
+            completer.completeError(
+              Exception(e.message ?? 'Không thể gửi mã xác thực'),
+            );
+          }
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          AppConfig.log('[Firebase] Code sent, verificationId=$verificationId');
+          _verificationId = verificationId;
+          _resendToken = resendToken;
+          _isOtpSending = false;
+          notifyListeners();
+          if (!completer.isCompleted) {
+            completer.complete();
+          }
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          AppConfig.log('[Firebase] Auto retrieval timeout');
+          _verificationId = verificationId;
+        },
+      );
+    } catch (e, stack) {
+      AppConfig.log('[Firebase] EXCEPTION in verifyPhoneNumber: $e');
+      AppConfig.log('[Firebase] Stack: $stack');
+      _isOtpSending = false;
+      notifyListeners();
+      if (!completer.isCompleted) {
+        completer.completeError(e);
+      }
+    }
 
     return completer.future;
   }

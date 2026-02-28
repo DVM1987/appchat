@@ -67,6 +67,7 @@
 		<dict>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>com.googleusercontent.apps.351965128781-5s6k88166cq3k0hfppor9qgse928ho1q</string>
 				<string>app-1-351965128781-ios-3f06a5ed06fb5e2b065404</string>
 			</array>
 		</dict>
@@ -79,9 +80,9 @@
 		<string>remote-notification</string>
 	</array>
 
-	<!-- Firebase - enable auto APNs swizzling for Phone Auth -->
+	<!-- Firebase - manual APNs/URL handling in AppDelegate (proxy=false) -->
 	<key>FirebaseAppDelegateProxyEnabled</key>
-	<true/>
+	<false/>
 
 	<!-- Allow HTTP to VPS only. Remove when HTTPS is configured. -->
 	<key>NSAppTransportSecurity</key>
