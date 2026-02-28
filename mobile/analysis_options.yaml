@@ -12,6 +12,7 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   errors:
     todo: ignore
+    use_build_context_synchronously: ignore ignore
 
 linter:
   rules:

@@ -69,3 +69,17 @@ node_modules/
 
 # Docker
 *.log
+
+# ========================
+# Certificates & Keys
+# ========================
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.jks
+*.jks.backup
+workspace/
+
+# Screenshots (generated assets, not source code)
+screenshots/

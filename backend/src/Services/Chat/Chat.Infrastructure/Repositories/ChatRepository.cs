@@ -139,5 +139,24 @@ namespace Chat.Infrastructure.Repositories
             );
             return (int)await _context.Messages.CountDocumentsAsync(filter);
         }
+
+        public async Task<int> GetTotalUnreadCountAsync(string userId)
+        {
+            // Get all conversation IDs this user belongs to
+            var conversations = await _context.Conversations
+                .Find(c => c.ParticipantIds.Contains(userId))
+                .Project(c => c.Id)
+                .ToListAsync();
+
+            if (!conversations.Any()) return 0;
+
+            // Count all unread messages across all conversations in a single query
+            var filter = Builders<Message>.Filter.And(
+                Builders<Message>.Filter.In(m => m.ConversationId, conversations),
+                Builders<Message>.Filter.Ne(m => m.SenderId, userId),
+                Builders<Message>.Filter.Ne("ReadBy", userId)
+            );
+            return (int)await _context.Messages.CountDocumentsAsync(filter);
+        }
     }
 }

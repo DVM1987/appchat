@@ -161,12 +161,31 @@ namespace Chat.API.Controllers
                             { "conversationName", conversation.Name ?? "" }
                         };
 
-                        // Send to all recipient devices
-                        var deviceTokens = recipientTokens.Select(d => d.DeviceToken).ToList();
-                        await _pushService.SendToMultipleAsync(deviceTokens, notificationTitle, notificationBody, data);
+                        // Send to each recipient individually with their own badge count
+                        foreach (var recipient in recipientTokens)
+                        {
+                            try
+                            {
+                                // Calculate total unread count for this specific user
+                                var userBadgeCount = await _repository.GetTotalUnreadCountAsync(recipient.IdentityId);
+                                
+                                var userData = new Dictionary<string, string>(data)
+                                {
+                                    { "badgeCount", userBadgeCount.ToString() }
+                                };
 
-                        _logger.LogInformation("[FCM] Push sent for message in conversation {ConvId} to {Count} devices",
-                            conversationId, deviceTokens.Count);
+                                await _pushService.SendToDeviceAsync(
+                                    recipient.DeviceToken, 
+                                    notificationTitle, 
+                                    notificationBody, 
+                                    userData, 
+                                    userBadgeCount);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "[FCM] Error sending push to user {UserId}", recipient.IdentityId);
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {

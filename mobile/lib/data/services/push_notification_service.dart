@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -284,6 +285,27 @@ class PushNotificationService {
       details,
       payload: jsonEncode(message.data),
     );
+
+    // Update app icon badge count from FCM data
+    final badgeCountStr = message.data['badgeCount'];
+    if (badgeCountStr != null) {
+      final badgeCount = int.tryParse(badgeCountStr) ?? 1;
+      FlutterAppBadger.updateBadgeCount(badgeCount);
+    }
+  }
+
+  /// Clear app icon badge (call when app opens or resumes)
+  static void clearBadge() {
+    FlutterAppBadger.removeBadge();
+  }
+
+  /// Update app icon badge with specific count
+  static void updateBadge(int count) {
+    if (count > 0) {
+      FlutterAppBadger.updateBadgeCount(count);
+    } else {
+      FlutterAppBadger.removeBadge();
+    }
   }
 
   // ════════════════════════════════════════════

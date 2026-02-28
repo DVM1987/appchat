@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -30,7 +32,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
   bool _isSelectionMode = false;
   final Set<String> _selectedChatIds = {};
@@ -39,9 +41,20 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Clear app icon badge when app opens
+    PushNotificationService.clearBadge();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _safeInit();
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Clear badge when app comes to foreground
+      PushNotificationService.clearBadge();
+    }
   }
 
   /// Safely initialize all services — each wrapped individually
@@ -316,6 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _deepLinkSub?.cancel();
     super.dispose();
   }

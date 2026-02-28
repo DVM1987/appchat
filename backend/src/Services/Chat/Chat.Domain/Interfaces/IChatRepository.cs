@@ -22,5 +22,6 @@ namespace Chat.Domain.Interfaces
         Task DeleteMessagesByConversationIdAsync(string conversationId);
         Task MarkMessagesAsReadAsync(string conversationId, string userId);
         Task<int> GetUnreadMessageCountAsync(string conversationId, string userId);
+        Task<int> GetTotalUnreadCountAsync(string userId);
     }
 }

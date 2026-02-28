@@ -15,8 +15,8 @@ namespace Chat.API.Services
     /// </summary>
     public interface IPushNotificationService
     {
-        Task SendToDeviceAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null);
-        Task SendToMultipleAsync(List<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null);
+        Task SendToDeviceAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null, int badgeCount = 1);
+        Task SendToMultipleAsync(List<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null, int badgeCount = 1);
     }
 
     public class FirebasePushNotificationService : IPushNotificationService
@@ -79,7 +79,7 @@ namespace Chat.API.Services
             }
         }
 
-        public async Task SendToDeviceAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null)
+        public async Task SendToDeviceAsync(string deviceToken, string title, string body, Dictionary<string, string>? data = null, int badgeCount = 1)
         {
             if (!_isInitialized)
             {
@@ -118,7 +118,7 @@ namespace Chat.API.Services
                                 Body = body,
                             },
                             Sound = "default",
-                            Badge = 1,
+                            Badge = badgeCount,
                         }
                     }
                 };
@@ -140,12 +140,12 @@ namespace Chat.API.Services
             }
         }
 
-        public async Task SendToMultipleAsync(List<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null)
+        public async Task SendToMultipleAsync(List<string> deviceTokens, string title, string body, Dictionary<string, string>? data = null, int badgeCount = 1)
         {
             Console.WriteLine($"[FCM] SendToMultipleAsync called with {deviceTokens.Count} tokens, initialized={_isInitialized}");
             if (!_isInitialized || deviceTokens.Count == 0) return;
 
-            var tasks = deviceTokens.Select(token => SendToDeviceAsync(token, title, body, data));
+            var tasks = deviceTokens.Select(token => SendToDeviceAsync(token, title, body, data, badgeCount));
             await Task.WhenAll(tasks);
         }
     }

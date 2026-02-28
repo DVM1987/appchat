@@ -8,6 +8,7 @@ import '../../data/repositories/chat_repository_impl.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/chat_service.dart';
 import '../../data/services/hidden_chats_service.dart';
+import '../../data/services/push_notification_service.dart';
 import '../../data/services/user_service.dart';
 import '../../domain/entities/conversation.dart';
 import '../../domain/repositories/chat_repository.dart';
@@ -345,6 +346,8 @@ class ChatProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+      // Sync app icon badge with total unread count
+      PushNotificationService.updateBadge(totalUnreadCount);
     }
   }
 
