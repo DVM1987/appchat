@@ -327,11 +327,12 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   void _acceptCall() async {
     AppConfig.log('[Call] Accepting call from ${widget.otherUserId}');
-    // CRITICAL: Mark call active FIRST — this blocks any future IncomingCall
-    // events from re-starting the ringtone (race condition fix)
-    SoundService().setCallActive(true); // blocks & stops ringtone atomically
-    // Extra delay to let iOS audio session fully release before Agora takes over
-    await Future.delayed(const Duration(milliseconds: 300));
+    // CRITICAL: Block future ringtones AND await full stop before Agora
+    SoundService().setCallActive(true);
+    await SoundService()
+        .stopRingtone(); // MUST await to ensure audio is fully released
+    // Extra safety delay to let iOS audio session fully release
+    await Future.delayed(const Duration(milliseconds: 500));
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _connectedAt = DateTime.now();
@@ -410,7 +411,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     _ringTimeout?.cancel();
     // Release call-active lock and cleanup ringtone
     SoundService().setCallActive(false);
-    SoundService().forceStopRingtone();
+    SoundService().stopRingtone();
     _pulseController.dispose();
     _agoraService.dispose();
 
