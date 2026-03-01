@@ -1,6 +1,10 @@
 # Session Summary — 2026-02-28
 ## Conversation ID: `2d6a1f28-39fd-4810-af8b-e7b2f410e7d1`
 
+> **⚠️ CHO SESSION MỚI**: Đọc conversation ID `2d6a1f28-39fd-4810-af8b-e7b2f410e7d1` để nắm toàn bộ công việc đã làm.
+> Đọc TẤT CẢ các file trong folder `workspace/memory/` trước khi bắt đầu làm việc.
+> KHÔNG làm lại những việc đã hoàn thành. Tham khảo các conversation liên quan ở mục "Related Conversations" bên dưới.
+
 ---
 
 ## 🎯 Các Bugs Đã Fix Trong Session Này
