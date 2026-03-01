@@ -747,13 +747,13 @@ class ChatService with WidgetsBindingObserver {
     });
 
     // === CALL SIGNALING LISTENERS ===
+    // NOTE: Sound is managed ONLY by CallScreen/HomeScreen, NOT here
     _hubConnection?.off('IncomingCall');
     _hubConnection?.on('IncomingCall', (arguments) {
       if (arguments != null && arguments.isNotEmpty) {
         final raw = arguments[0];
         if (raw is Map) {
           final data = raw.map((k, v) => MapEntry(k.toString(), v));
-          SoundService().playRingtone();
           onIncomingCall?.call(data);
         }
       }
@@ -761,21 +761,16 @@ class ChatService with WidgetsBindingObserver {
 
     _hubConnection?.off('CallAccepted');
     _hubConnection?.on('CallAccepted', (arguments) {
-      SoundService().stopRingtone();
       onCallAccepted?.call();
     });
 
     _hubConnection?.off('CallRejected');
     _hubConnection?.on('CallRejected', (arguments) {
-      SoundService().stopRingtone();
-      SoundService().playCallEnd();
       onCallRejected?.call();
     });
 
     _hubConnection?.off('CallEnded');
     _hubConnection?.on('CallEnded', (arguments) {
-      SoundService().stopRingtone();
-      SoundService().playCallEnd();
       onCallEnded?.call();
     });
   }

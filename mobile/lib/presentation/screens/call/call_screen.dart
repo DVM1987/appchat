@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -62,8 +63,13 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   int? _remoteUid;
   bool _agoraJoined = false;
   String? _channelName;
-  String? _callLogId; // Track the call log ID for updating
-  DateTime? _connectedAt; // Track when call connected for duration calc
+  String? _callLogId;
+  DateTime? _connectedAt;
+
+  // === LOCAL RINGTONE PLAYER — owned by this widget, not a singleton ===
+  AudioPlayer? _ringtonePlayer;
+  Timer? _ringtoneTimer;
+  bool _ringStopped = false; // flag to prevent any replay after stop
 
   @override
   void initState() {
@@ -81,7 +87,11 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     // Listen for call signals
     _setupCallListeners();
 
-    if (widget.callRole == CallRole.caller) {
+    if (widget.callRole == CallRole.callee) {
+      // Callee: start ringtone immediately
+      _callLogId = widget.callLogId;
+      _startRingtone();
+    } else {
       // Caller: initiate the call and record outgoing log
       _recordOutgoingLog();
       _initiateCall();
@@ -92,9 +102,52 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
           _endCall(showMessage: true);
         }
       });
-    } else {
-      // Callee: callLogId is already set from home_screen
-      _callLogId = widget.callLogId;
+    }
+  }
+
+  // === RINGTONE MANAGEMENT — owned locally by this widget ===
+
+  /// Start playing ringtone using Timer-based repeat (no ReleaseMode.loop).
+  void _startRingtone() {
+    _ringStopped = false;
+    _playRingtoneOnce();
+    _ringtoneTimer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (_ringStopped) {
+        _ringtoneTimer?.cancel();
+        _ringtoneTimer = null;
+        return;
+      }
+      _playRingtoneOnce();
+    });
+  }
+
+  void _playRingtoneOnce() {
+    if (_ringStopped) return;
+    // Kill old player before creating new one
+    _ringtonePlayer?.dispose();
+    _ringtonePlayer = null;
+
+    final player = AudioPlayer();
+    _ringtonePlayer = player;
+    player.setReleaseMode(ReleaseMode.stop);
+    player.setVolume(0.8);
+    player.play(AssetSource('sounds/ringtone.wav')).catchError((_) {});
+  }
+
+  /// Stop ringtone IMMEDIATELY. Synchronous — no async.
+  void _stopRingtone() {
+    _ringStopped = true;
+    _ringtoneTimer?.cancel();
+    _ringtoneTimer = null;
+    final player = _ringtonePlayer;
+    _ringtonePlayer = null;
+    if (player != null) {
+      // Immediately mute then dispose — do NOT await
+      player
+          .setVolume(0)
+          .then((_) => player.stop())
+          .then((_) => player.release())
+          .whenComplete(() => player.dispose());
     }
   }
 
@@ -122,11 +175,10 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   }
 
   void _setupCallListeners() {
-    // Listen for call accepted (CALLER side) → start Agora
+    // Caller side: callee accepted the call
     _chatService.onCallAccepted = () {
       AppConfig.log('[Call] Received CallAccepted signal');
-      // Mark call active FIRST — blocks any further ringtone playback
-      SoundService().setCallActive(true);
+      _stopRingtone(); // stop caller's ringback if any
       if (mounted && _callState == CallState.ringing) {
         setState(() => _callState = CallState.connected);
         _connectedAt = DateTime.now();
@@ -138,10 +190,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       }
     };
 
-    // Listen for call rejected
     _chatService.onCallRejected = () {
-      SoundService().setCallActive(false);
-      SoundService().stopRingtone();
+      _stopRingtone();
+      SoundService().playCallEnd();
       if (mounted && _callState == CallState.ringing) {
         _updateLogStatus(CallStatus.rejected);
         _showCallMessage('Cuộc gọi bị từ chối');
@@ -149,10 +200,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       }
     };
 
-    // Listen for call ended by other party
     _chatService.onCallEnded = () {
-      SoundService().setCallActive(false);
-      SoundService().stopRingtone();
+      _stopRingtone();
+      SoundService().playCallEnd();
       if (mounted && _callState != CallState.ended) {
         _updateLogDuration();
         _showCallMessage('Cuộc gọi đã kết thúc');
@@ -327,54 +377,43 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   void _acceptCall() async {
     AppConfig.log('[Call] Accepting call from ${widget.otherUserId}');
-    // CRITICAL: Block future ringtones AND await full stop before Agora
-    SoundService().setCallActive(true);
-    await SoundService()
-        .stopRingtone(); // MUST await to ensure audio is fully released
-    // Extra safety delay to let iOS audio session fully release
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Stop ringtone FIRST, synchronously set flag then kill player
+    _stopRingtone();
+    // Wait for audio session to fully clear before Agora takes mic
+    await Future.delayed(const Duration(milliseconds: 600));
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _connectedAt = DateTime.now();
     _pulseController.stop();
     _startDurationTimer();
     _updateLogStatus(CallStatus.completed);
-    await _initAndJoinAgora(); // 🔊 Callee also joins Agora
+    await _initAndJoinAgora();
   }
 
   void _rejectCall() {
-    SoundService().setCallActive(false);
-    SoundService().stopRingtone();
+    _stopRingtone();
     _updateLogStatus(CallStatus.rejected);
     _chatService.rejectCall(callerId: widget.otherUserId);
     _endCallSilent();
   }
 
   void _endCall({bool showMessage = false}) {
+    _stopRingtone();
     _updateLogDuration();
     _chatService.endCall(otherUserId: widget.otherUserId);
-    if (showMessage) {
-      _showCallMessage('Không có phản hồi');
-    }
+    if (showMessage) _showCallMessage('Không có phản hồi');
     _endCallSilent();
   }
 
   void _endCallSilent() async {
     _durationTimer?.cancel();
     _ringTimeout?.cancel();
-    // Release call-active lock and stop ringtone
-    SoundService().setCallActive(false);
-    SoundService().stopRingtone();
+    _stopRingtone(); // always stop ringtone in every exit path
     setState(() => _callState = CallState.ended);
-
-    // Leave Agora channel and dispose
     await _agoraService.dispose();
-
-    // Clear listeners
     _chatService.onCallAccepted = null;
     _chatService.onCallRejected = null;
     _chatService.onCallEnded = null;
-
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) Navigator.pop(context);
     });
@@ -409,17 +448,12 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void dispose() {
     _durationTimer?.cancel();
     _ringTimeout?.cancel();
-    // Release call-active lock and cleanup ringtone
-    SoundService().setCallActive(false);
-    SoundService().stopRingtone();
+    _stopRingtone(); // ensure ringtone stops no matter what
     _pulseController.dispose();
     _agoraService.dispose();
-
-    // Clean up listeners
     _chatService.onCallAccepted = null;
     _chatService.onCallRejected = null;
     _chatService.onCallEnded = null;
-
     super.dispose();
   }
 
