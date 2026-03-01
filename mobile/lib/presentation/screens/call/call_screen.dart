@@ -68,7 +68,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   // === LOCAL RINGTONE PLAYER — owned by this widget, not a singleton ===
   AudioPlayer? _ringtonePlayer;
-  Timer? _ringtoneTimer;
+  StreamSubscription? _playerCompleteSub;
+  Future<void>? _playFuture; // track the native play() future
   bool _ringStopped = false; // flag to prevent any replay after stop
 
   @override
@@ -105,49 +106,62 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     }
   }
 
-  // === RINGTONE MANAGEMENT — owned locally by this widget ===
+  // === RINGTONE MANAGEMENT — single AudioPlayer with onPlayerComplete loop ===
 
-  /// Start playing ringtone using Timer-based repeat (no ReleaseMode.loop).
+  /// Start playing ringtone. Uses ONE AudioPlayer and loops via onPlayerComplete.
   void _startRingtone() {
     _ringStopped = false;
-    _playRingtoneOnce();
-    _ringtoneTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (_ringStopped) {
-        _ringtoneTimer?.cancel();
-        _ringtoneTimer = null;
-        return;
-      }
-      _playRingtoneOnce();
-    });
-  }
-
-  void _playRingtoneOnce() {
-    if (_ringStopped) return;
-    // Kill old player before creating new one
-    _ringtonePlayer?.dispose();
-    _ringtonePlayer = null;
-
     final player = AudioPlayer();
     _ringtonePlayer = player;
     player.setReleaseMode(ReleaseMode.stop);
     player.setVolume(0.8);
-    player.play(AssetSource('sounds/ringtone.wav')).catchError((_) {});
+
+    // When a clip finishes, replay if not stopped
+    _playerCompleteSub = player.onPlayerComplete.listen((_) {
+      if (!_ringStopped) {
+        _playFuture = player
+            .play(AssetSource('sounds/ringtone.wav'))
+            .catchError((_) {});
+      }
+    });
+
+    // First play
+    _playFuture = player
+        .play(AssetSource('sounds/ringtone.wav'))
+        .catchError((_) {});
   }
 
-  /// Stop ringtone IMMEDIATELY. Synchronous — no async.
-  void _stopRingtone() {
+  /// Stop ringtone. MUST be awaited to guarantee native audio is fully stopped.
+  Future<void> _stopRingtone() async {
     _ringStopped = true;
-    _ringtoneTimer?.cancel();
-    _ringtoneTimer = null;
+
+    // Cancel the loop listener first so no more replays
+    _playerCompleteSub?.cancel();
+    _playerCompleteSub = null;
+
     final player = _ringtonePlayer;
     _ringtonePlayer = null;
+
     if (player != null) {
-      // Immediately mute then dispose — do NOT await
-      player
-          .setVolume(0)
-          .then((_) => player.stop())
-          .then((_) => player.release())
-          .whenComplete(() => player.dispose());
+      // Wait for any in-flight play() to finish natively before stopping
+      try {
+        await _playFuture;
+      } catch (_) {}
+      _playFuture = null;
+
+      // Now the native engine is ready — stop sequentially
+      try {
+        await player.setVolume(0);
+      } catch (_) {}
+      try {
+        await player.stop();
+      } catch (_) {}
+      try {
+        await player.release();
+      } catch (_) {}
+      try {
+        player.dispose();
+      } catch (_) {}
     }
   }
 
@@ -176,9 +190,9 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   void _setupCallListeners() {
     // Caller side: callee accepted the call
-    _chatService.onCallAccepted = () {
+    _chatService.onCallAccepted = () async {
       AppConfig.log('[Call] Received CallAccepted signal');
-      _stopRingtone(); // stop caller's ringback if any
+      await _stopRingtone(); // stop caller's ringback — await to fully clear
       if (mounted && _callState == CallState.ringing) {
         setState(() => _callState = CallState.connected);
         _connectedAt = DateTime.now();
@@ -190,23 +204,23 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
       }
     };
 
-    _chatService.onCallRejected = () {
-      _stopRingtone();
+    _chatService.onCallRejected = () async {
+      await _stopRingtone();
       SoundService().playCallEnd();
       if (mounted && _callState == CallState.ringing) {
         _updateLogStatus(CallStatus.rejected);
         _showCallMessage('Cuộc gọi bị từ chối');
-        _endCallSilent();
+        await _endCallSilent();
       }
     };
 
-    _chatService.onCallEnded = () {
-      _stopRingtone();
+    _chatService.onCallEnded = () async {
+      await _stopRingtone();
       SoundService().playCallEnd();
       if (mounted && _callState != CallState.ended) {
         _updateLogDuration();
         _showCallMessage('Cuộc gọi đã kết thúc');
-        _endCallSilent();
+        await _endCallSilent();
       }
     };
   }
@@ -375,12 +389,10 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     return '$minutes:$seconds';
   }
 
-  void _acceptCall() async {
+  Future<void> _acceptCall() async {
     AppConfig.log('[Call] Accepting call from ${widget.otherUserId}');
-    // Stop ringtone FIRST, synchronously set flag then kill player
-    _stopRingtone();
-    // Wait for audio session to fully clear before Agora takes mic
-    await Future.delayed(const Duration(milliseconds: 600));
+    // Stop ringtone FIRST — await guarantees native audio is fully dead
+    await _stopRingtone();
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _connectedAt = DateTime.now();
@@ -390,25 +402,25 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     await _initAndJoinAgora();
   }
 
-  void _rejectCall() {
-    _stopRingtone();
+  Future<void> _rejectCall() async {
+    await _stopRingtone();
     _updateLogStatus(CallStatus.rejected);
     _chatService.rejectCall(callerId: widget.otherUserId);
-    _endCallSilent();
+    await _endCallSilent();
   }
 
-  void _endCall({bool showMessage = false}) {
-    _stopRingtone();
+  Future<void> _endCall({bool showMessage = false}) async {
+    await _stopRingtone();
     _updateLogDuration();
     _chatService.endCall(otherUserId: widget.otherUserId);
     if (showMessage) _showCallMessage('Không có phản hồi');
-    _endCallSilent();
+    await _endCallSilent();
   }
 
-  void _endCallSilent() async {
+  Future<void> _endCallSilent() async {
     _durationTimer?.cancel();
     _ringTimeout?.cancel();
-    _stopRingtone(); // always stop ringtone in every exit path
+    await _stopRingtone(); // always stop ringtone in every exit path
     setState(() => _callState = CallState.ended);
     await _agoraService.dispose();
     _chatService.onCallAccepted = null;
@@ -448,7 +460,20 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void dispose() {
     _durationTimer?.cancel();
     _ringTimeout?.cancel();
-    _stopRingtone(); // ensure ringtone stops no matter what
+    // Can't await in dispose — but _ringStopped flag prevents replay,
+    // and the player is killed synchronously via setVolume(0) + stop chain.
+    _ringStopped = true;
+    _playerCompleteSub?.cancel();
+    _playerCompleteSub = null;
+    final player = _ringtonePlayer;
+    _ringtonePlayer = null;
+    if (player != null) {
+      player
+          .setVolume(0)
+          .then((_) => player.stop())
+          .then((_) => player.release())
+          .whenComplete(() => player.dispose());
+    }
     _pulseController.dispose();
     _agoraService.dispose();
     _chatService.onCallAccepted = null;
