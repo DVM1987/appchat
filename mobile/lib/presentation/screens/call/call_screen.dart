@@ -125,6 +125,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
     // Listen for call accepted → start Agora
     _chatService.onCallAccepted = () {
       AppConfig.log('[Call] Received CallAccepted signal');
+      SoundService().stopRingtone(); // Stop any ringtone on this side too
       if (mounted && _callState == CallState.ringing) {
         setState(() => _callState = CallState.connected);
         _connectedAt = DateTime.now();
@@ -138,6 +139,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
     // Listen for call rejected
     _chatService.onCallRejected = () {
+      SoundService().stopRingtone();
       if (mounted && _callState == CallState.ringing) {
         _updateLogStatus(CallStatus.rejected);
         _showCallMessage('Cuộc gọi bị từ chối');
@@ -147,6 +149,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
     // Listen for call ended by other party
     _chatService.onCallEnded = () {
+      SoundService().stopRingtone();
       if (mounted && _callState != CallState.ended) {
         _updateLogDuration();
         _showCallMessage('Cuộc gọi đã kết thúc');
@@ -321,8 +324,10 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   void _acceptCall() async {
     AppConfig.log('[Call] Accepting call from ${widget.otherUserId}');
-    // CRITICAL: Stop ringtone BEFORE joining Agora so mic doesn't capture it
+    // CRITICAL: Stop ringtone and fully release audio BEFORE Agora takes audio session
     await SoundService().stopRingtone();
+    // Small delay to ensure iOS audio session is fully released
+    await Future.delayed(const Duration(milliseconds: 200));
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _connectedAt = DateTime.now();

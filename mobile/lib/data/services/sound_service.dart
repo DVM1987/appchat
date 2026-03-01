@@ -10,7 +10,7 @@ class SoundService {
   SoundService._internal();
 
   final AudioPlayer _messagePlayer = AudioPlayer();
-  final AudioPlayer _ringtonePlayer = AudioPlayer();
+  AudioPlayer? _ringtonePlayer;
   final AudioPlayer _callEndPlayer = AudioPlayer();
 
   bool _isRinging = false;
@@ -33,10 +33,13 @@ class SoundService {
     if (_isRinging) return;
     try {
       _isRinging = true;
-      await _ringtonePlayer.setReleaseMode(ReleaseMode.loop);
-      await _ringtonePlayer.setSource(AssetSource('sounds/ringtone.wav'));
-      await _ringtonePlayer.setVolume(0.8);
-      await _ringtonePlayer.resume();
+      // Create a fresh player each time to avoid iOS audio session issues
+      _ringtonePlayer?.dispose();
+      _ringtonePlayer = AudioPlayer();
+      await _ringtonePlayer!.setReleaseMode(ReleaseMode.loop);
+      await _ringtonePlayer!.setSource(AssetSource('sounds/ringtone.wav'));
+      await _ringtonePlayer!.setVolume(0.8);
+      await _ringtonePlayer!.resume();
       AppConfig.log('[Sound] Ringtone started');
     } catch (e) {
       AppConfig.log('[Sound] Error playing ringtone: $e');
@@ -44,15 +47,28 @@ class SoundService {
     }
   }
 
-  /// Stop the ringtone
+  /// Stop the ringtone — always attempts to stop regardless of _isRinging flag
   Future<void> stopRingtone() async {
-    if (!_isRinging) return;
+    _isRinging = false;
     try {
-      _isRinging = false;
-      await _ringtonePlayer.stop();
-      AppConfig.log('[Sound] Ringtone stopped');
+      if (_ringtonePlayer != null) {
+        // 1. Immediately mute to prevent any audio leak
+        await _ringtonePlayer!.setVolume(0);
+        // 2. Stop playback
+        await _ringtonePlayer!.stop();
+        // 3. Release and destroy the player to fully free audio resources
+        await _ringtonePlayer!.release();
+        _ringtonePlayer!.dispose();
+        _ringtonePlayer = null;
+        AppConfig.log('[Sound] Ringtone stopped and released');
+      }
     } catch (e) {
       AppConfig.log('[Sound] Error stopping ringtone: $e');
+      // Force cleanup even on error
+      try {
+        _ringtonePlayer?.dispose();
+      } catch (_) {}
+      _ringtonePlayer = null;
     }
   }
 
@@ -73,7 +89,8 @@ class SoundService {
   /// Dispose all players
   void dispose() {
     _messagePlayer.dispose();
-    _ringtonePlayer.dispose();
+    _ringtonePlayer?.dispose();
+    _ringtonePlayer = null;
     _callEndPlayer.dispose();
   }
 }
