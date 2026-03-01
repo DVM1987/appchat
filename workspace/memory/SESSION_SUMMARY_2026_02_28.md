@@ -185,3 +185,29 @@ flutter install --release -d 00008030-000604CC2E40802E
 6. flutter install --release -d <Muoi_Phone_ID>
 7. Thông báo user test
 ```
+
+---
+
+## 🧠 Antigravity Skills (946 skills đã cài)
+
+**Path**: `/Users/dauvanmuoi/.gemini/antigravity/skills/`
+**Source**: https://github.com/sickn33/antigravity-awesome-skills
+
+### Skills liên quan đến dự án MChat:
+| Công việc | Skill nên dùng |
+|-----------|---------------|
+| Flutter/Dart | `flutter-expert` |
+| C# / .NET backend | `dotnet-backend`, `csharp-pro` |
+| Firebase | `firebase` |
+| iOS native | `ios-developer`, `swiftui-expert-skill` |
+| Debug | `systematic-debugging`, `debugging-strategies` |
+| Code review | `code-reviewer`, `clean-code` |
+| Docker/DevOps | `docker-expert`, `cloud-devops` |
+| API design | `api-design-principles` |
+| Database | `postgresql`, `nosql-expert` |
+| Testing | `testing-patterns`, `e2e-testing` |
+| Security | `security-audit`, `api-security-best-practices` |
+| Git workflow | `git-pushing`, `create-pr` |
+
+> **Quy tắc**: Trước mỗi yêu cầu, đọc SKILL.md của skill phù hợp để áp dụng best practices.
+> Ví dụ: `view_file /Users/dauvanmuoi/.gemini/antigravity/skills/flutter-expert/SKILL.md`
