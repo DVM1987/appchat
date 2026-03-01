@@ -12,6 +12,7 @@ import '../../../data/services/agora_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/call_log_service.dart';
 import '../../../data/services/chat_service.dart';
+import '../../../data/services/sound_service.dart';
 import '../../providers/call_log_provider.dart';
 import '../../widgets/common/custom_avatar.dart';
 
@@ -320,6 +321,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
 
   void _acceptCall() async {
     AppConfig.log('[Call] Accepting call from ${widget.otherUserId}');
+    // CRITICAL: Stop ringtone BEFORE joining Agora so mic doesn't capture it
+    await SoundService().stopRingtone();
     _chatService.acceptCall(callerId: widget.otherUserId);
     setState(() => _callState = CallState.connected);
     _connectedAt = DateTime.now();
@@ -330,6 +333,7 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   }
 
   void _rejectCall() {
+    SoundService().stopRingtone();
     _updateLogStatus(CallStatus.rejected);
     _chatService.rejectCall(callerId: widget.otherUserId);
     _endCallSilent();
@@ -347,6 +351,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void _endCallSilent() async {
     _durationTimer?.cancel();
     _ringTimeout?.cancel();
+    // Always stop ringtone as safety net
+    SoundService().stopRingtone();
     setState(() => _callState = CallState.ended);
 
     // Leave Agora channel and dispose
@@ -391,6 +397,8 @@ class _CallScreenState extends State<CallScreen> with TickerProviderStateMixin {
   void dispose() {
     _durationTimer?.cancel();
     _ringTimeout?.cancel();
+    // Safety: ensure ringtone is stopped when screen is disposed
+    SoundService().stopRingtone();
     _pulseController.dispose();
     _agoraService.dispose();
 
