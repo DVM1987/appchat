@@ -29,6 +29,8 @@ class ChatScreen extends StatefulWidget {
   final bool isGroup;
   final String? creatorId;
   final List<String>? participantIds;
+  final String?
+  conversationId; // When provided (e.g. from notification), use directly
 
   const ChatScreen({
     super.key,
@@ -38,6 +40,7 @@ class ChatScreen extends StatefulWidget {
     this.isGroup = false,
     this.creatorId,
     this.participantIds,
+    this.conversationId,
   });
 
   @override
@@ -133,11 +136,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       } else {
         // Chat 1-1: chatId is FriendId
-        AppConfig.log(
-          '[ChatScreen] Creating/getting conversation for friend: ${widget.chatId}',
-        );
-        _conversationId = await _chatService.createConversation(widget.chatId);
-        AppConfig.log('[ChatScreen] Got conversationId: $_conversationId');
+        if (widget.conversationId != null &&
+            widget.conversationId!.isNotEmpty) {
+          // Opened from push notification — conversationId provided directly
+          AppConfig.log(
+            '[ChatScreen] Using provided conversationId: ${widget.conversationId}',
+          );
+          _conversationId = widget.conversationId;
+        } else {
+          AppConfig.log(
+            '[ChatScreen] Creating/getting conversation for friend: ${widget.chatId}',
+          );
+          _conversationId = await _chatService.createConversation(
+            widget.chatId,
+          );
+          AppConfig.log('[ChatScreen] Got conversationId: $_conversationId');
+        }
       }
 
       if (mounted) {
@@ -147,7 +161,9 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
 
       // 2. Load History
-      AppConfig.log('[ChatScreen] Loading messages for conversation: $_conversationId');
+      AppConfig.log(
+        '[ChatScreen] Loading messages for conversation: $_conversationId',
+      );
       final history = await _chatService.getMessages(_conversationId!);
       AppConfig.log('[ChatScreen] Loaded ${history.length} messages');
       _prepareUnreadDividerFromMessages(history);

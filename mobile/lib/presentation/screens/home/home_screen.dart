@@ -166,6 +166,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 chatId: conversationId,
                 otherUserName: displayName,
                 isGroup: isGroup,
+                conversationId:
+                    conversationId, // Pass conversationId directly for 1-1 chats
               ),
             ),
           );
