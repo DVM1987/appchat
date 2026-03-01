@@ -63,6 +63,13 @@
 - `mobile/ios/Runner/Info.plist`
 - `mobile/ios/Runner/AppDelegate.swift`
 
+### 6. ✅ Nhấn Push Notification Mở Sai Conversation
+**Vấn đề**: Nhấn notification từ lock screen → mở conversation MỚI trống (cùng tên nhưng không có tin nhắn, không avatar) thay vì mở conversation đã có.
+**Nguyên nhân**: Push notification gửi `conversationId`, nhưng `ChatScreen` dùng nó làm `friendId` cho 1-1 chat → gọi `createConversation(conversationId)` → tạo conversation mới.
+**Fix**: Thêm tham số `conversationId` vào `ChatScreen`. Khi có `conversationId` (từ notification), dùng trực tiếp thay vì gọi `createConversation`.
+**Commit**: `c4b20ff`
+**Files**: `mobile/lib/presentation/screens/chat/chat_screen.dart`, `mobile/lib/presentation/screens/home/home_screen.dart`
+
 ---
 
 ## 📋 Cấu Hình Quan Trọng (KHÔNG ĐƯỢC ĐỔI)
@@ -128,6 +135,7 @@ flutter install --release -d 00008030-000604CC2E40802E  # Mười Phone
 ---
 
 ## 🔗 Related Conversations
+- **2d6a1f28**: (CHAT NÀY) Fix push noti, online status, call, OTP, reCAPTCHA, notification tap
 - **f4582b65**: Fixing Firebase Phone Auth Crash — set up OAuth client, URL schemes, APNs key upload
 - **f040cd90**: Switching SMS Provider — migrated from Stringee to SpeedSMS (later replaced by Firebase Phone Auth)
 - **3ac667bf**: App Store Release Preparation
@@ -143,3 +151,37 @@ flutter install --release -d 00008030-000604CC2E40802E  # Mười Phone
 4. Khi deploy backend mới, phải đảm bảo `firebase-admin-sdk.json` được copy đúng path
 5. **External drive `/Volumes/DVM/appchat`** hay bị I/O error — nếu gặp thì rút cắm lại USB
 6. Khi cài app nhiều lần, APNs token có thể bị reset — cho phép notifications khi app hỏi
+
+---
+
+## 📱 Quy Trình Cài App Lên iPhone (Wireless — KHÔNG cần cắm cable)
+
+Cả 2 iPhone đều đã pair wireless với Mac. Chỉ cần **cùng mạng WiFi** là cài được:
+
+```bash
+# 1. Build iOS release
+cd /Volumes/DVM/appchat/mobile
+flutter build ios --release
+
+# 2. Cài lên iPhone M (wireless)
+flutter install --release -d 00008110-00167CAE340BA01E
+
+# 3. Cài lên Mười Phone (wireless)
+flutter install --release -d 00008030-000604CC2E40802E
+```
+
+> **Lưu ý**: Nếu wireless timeout → retry 1-2 lần. Nếu vẫn fail → cắm cable USB.
+
+---
+
+## 🔄 Quy Trình Xử Lý Bug Chuẩn
+
+```
+1. Phân tích bug → xác định file liên quan
+2. Sửa code
+3. git add -A && git commit -m "fix: ..." && git push origin main
+4. flutter build ios --release
+5. flutter install --release -d <iPhone_M_ID>
+6. flutter install --release -d <Muoi_Phone_ID>
+7. Thông báo user test
+```
