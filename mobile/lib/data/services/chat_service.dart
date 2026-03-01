@@ -747,6 +747,7 @@ class ChatService with WidgetsBindingObserver {
     });
 
     // === CALL SIGNALING LISTENERS ===
+    _hubConnection?.off('IncomingCall');
     _hubConnection?.on('IncomingCall', (arguments) {
       if (arguments != null && arguments.isNotEmpty) {
         final raw = arguments[0];
@@ -757,15 +758,21 @@ class ChatService with WidgetsBindingObserver {
         }
       }
     });
+
+    _hubConnection?.off('CallAccepted');
     _hubConnection?.on('CallAccepted', (arguments) {
       SoundService().stopRingtone();
       onCallAccepted?.call();
     });
+
+    _hubConnection?.off('CallRejected');
     _hubConnection?.on('CallRejected', (arguments) {
       SoundService().stopRingtone();
       SoundService().playCallEnd();
       onCallRejected?.call();
     });
+
+    _hubConnection?.off('CallEnded');
     _hubConnection?.on('CallEnded', (arguments) {
       SoundService().stopRingtone();
       SoundService().playCallEnd();

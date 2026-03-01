@@ -10,7 +10,10 @@ class SoundService {
   SoundService._internal();
 
   final AudioPlayer _messagePlayer = AudioPlayer();
-  AudioPlayer? _ringtonePlayer;
+
+  // Track all active ringtone players in case of concurrent triggers
+  final List<AudioPlayer> _ringtonePlayers = [];
+
   final AudioPlayer _callEndPlayer = AudioPlayer();
 
   bool _isRinging = false;
@@ -51,17 +54,24 @@ class SoundService {
       AppConfig.log('[Sound] Ringtone BLOCKED — call is active');
       return;
     }
+
+    // Explicitly destroy any existing players to avoid overlap
+    _destroyAllRingtonePlayersSync();
+
     if (_isRinging) return;
     try {
       _isRinging = true;
       // Create a fresh player each time to avoid iOS audio session issues
-      _ringtonePlayer?.dispose();
-      _ringtonePlayer = AudioPlayer();
-      await _ringtonePlayer!.setReleaseMode(ReleaseMode.loop);
-      await _ringtonePlayer!.setSource(AssetSource('sounds/ringtone.wav'));
-      await _ringtonePlayer!.setVolume(0.8);
-      await _ringtonePlayer!.resume();
-      AppConfig.log('[Sound] Ringtone started');
+      final player = AudioPlayer();
+      _ringtonePlayers.add(player);
+
+      await player.setReleaseMode(ReleaseMode.loop);
+      await player.setSource(AssetSource('sounds/ringtone.wav'));
+      await player.setVolume(0.8);
+      await player.resume();
+      AppConfig.log(
+        '[Sound] Ringtone started, active players: ${_ringtonePlayers.length}',
+      );
     } catch (e) {
       AppConfig.log('[Sound] Error playing ringtone: $e');
       _isRinging = false;
@@ -71,20 +81,25 @@ class SoundService {
   /// Stop the ringtone — always attempts to stop regardless of _isRinging flag
   Future<void> stopRingtone() async {
     _isRinging = false;
-    await _destroyRingtonePlayer();
+    await _destroyAllRingtonePlayersAsync();
   }
 
   /// Force stop — bypasses all guards, destroys everything
   void forceStopRingtone() {
     _isRinging = false;
-    _destroyRingtonePlayerSync();
+    _destroyAllRingtonePlayersSync();
   }
 
-  Future<void> _destroyRingtonePlayer() async {
-    try {
-      if (_ringtonePlayer != null) {
-        final player = _ringtonePlayer!;
-        _ringtonePlayer = null; // Null out FIRST to prevent re-use
+  Future<void> _destroyAllRingtonePlayersAsync() async {
+    AppConfig.log(
+      '[Sound] Destroying ${_ringtonePlayers.length} ringtone players (async)',
+    );
+    // Make a copy and clear the list immediately
+    final playersToDestroy = List<AudioPlayer>.from(_ringtonePlayers);
+    _ringtonePlayers.clear();
+
+    for (final player in playersToDestroy) {
+      try {
         // 1. Immediately mute to prevent any audio leak
         try {
           await player.setVolume(0);
@@ -101,18 +116,24 @@ class SoundService {
         try {
           player.dispose();
         } catch (_) {}
-        AppConfig.log('[Sound] Ringtone stopped and destroyed');
+      } catch (e) {
+        AppConfig.log('[Sound] Error destroying a ringtone player: $e');
       }
-    } catch (e) {
-      AppConfig.log('[Sound] Error destroying ringtone player: $e');
     }
   }
 
-  void _destroyRingtonePlayerSync() {
-    try {
-      if (_ringtonePlayer != null) {
-        final player = _ringtonePlayer!;
-        _ringtonePlayer = null;
+  void _destroyAllRingtonePlayersSync() {
+    if (_ringtonePlayers.isNotEmpty) {
+      AppConfig.log(
+        '[Sound] Destroying ${_ringtonePlayers.length} ringtone players (sync)',
+      );
+    }
+
+    final playersToDestroy = List<AudioPlayer>.from(_ringtonePlayers);
+    _ringtonePlayers.clear();
+
+    for (final player in playersToDestroy) {
+      try {
         try {
           player.setVolume(0);
         } catch (_) {}
@@ -125,10 +146,9 @@ class SoundService {
         try {
           player.dispose();
         } catch (_) {}
-        AppConfig.log('[Sound] Ringtone force-destroyed (sync)');
+      } catch (e) {
+        AppConfig.log('[Sound] Error force-destroying ringtone: $e');
       }
-    } catch (e) {
-      AppConfig.log('[Sound] Error force-destroying ringtone: $e');
     }
   }
 
@@ -149,8 +169,7 @@ class SoundService {
   /// Dispose all players
   void dispose() {
     _messagePlayer.dispose();
-    _ringtonePlayer?.dispose();
-    _ringtonePlayer = null;
+    _destroyAllRingtonePlayersSync();
     _callEndPlayer.dispose();
   }
 }
