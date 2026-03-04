@@ -83,11 +83,12 @@ class _PhoneInputScreenState extends State<PhoneInputScreen> {
     } catch (e) {
       AppConfig.log('Error sending OTP: $e');
       if (mounted) {
+        final errorMsg = e
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll(RegExp(r'^\[.*?\]\s*'), '');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMsg), backgroundColor: Colors.red),
         );
       }
     } finally {

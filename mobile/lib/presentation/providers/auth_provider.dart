@@ -256,9 +256,7 @@ class AuthProvider with ChangeNotifier {
           notifyListeners();
           if (!completer.isCompleted) {
             completer.completeError(
-              Exception(
-                '[${e.code}] ${e.message ?? 'Không thể gửi mã xác thực'}',
-              ),
+              Exception(_mapFirebaseError(e.code, e.message)),
             );
           }
         },
@@ -286,9 +284,9 @@ class AuthProvider with ChangeNotifier {
       if (!completer.isCompleted) {
         String errorMsg;
         if (e is fb.FirebaseAuthException) {
-          errorMsg = '[${e.code}] ${e.message}';
+          errorMsg = _mapFirebaseError(e.code, e.message);
         } else {
-          errorMsg = '[${e.runtimeType}] $e';
+          errorMsg = 'Không thể gửi mã xác thực. Vui lòng thử lại.';
         }
         completer.completeError(Exception(errorMsg));
       }
@@ -375,6 +373,28 @@ class AuthProvider with ChangeNotifier {
       return isNewUser;
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Map Firebase error codes to user-friendly Vietnamese messages
+  String _mapFirebaseError(String code, String? message) {
+    switch (code) {
+      case 'invalid-phone-number':
+        return 'Số điện thoại không hợp lệ. Vui lòng kiểm tra lại.';
+      case 'too-many-requests':
+        return 'Bạn đã thử quá nhiều lần. Vui lòng đợi vài phút rồi thử lại.';
+      case 'network-request-failed':
+        return 'Lỗi kết nối mạng. Vui lòng kiểm tra Internet và thử lại.';
+      case 'app-not-authorized':
+        return 'Ứng dụng chưa được cấp quyền. Vui lòng liên hệ hỗ trợ.';
+      case 'quota-exceeded':
+        return 'Đã vượt giới hạn gửi SMS. Vui lòng thử lại sau.';
+      case 'captcha-check-failed':
+        return 'Xác minh bảo mật thất bại. Vui lòng thử lại.';
+      case 'missing-phone-number':
+        return 'Vui lòng nhập số điện thoại.';
+      default:
+        return message ?? 'Không thể gửi mã xác thực. Vui lòng thử lại.';
     }
   }
 
